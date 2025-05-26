@@ -1,24 +1,19 @@
 Bare Metal Gateway Service Plugin
 ============================
 
-Last Updated: 2023-12-14
+Last Updated: 2025-05-26
 
-This service plugin provides functionality for managing bare metal gateway connectivity in OpenStack Neutron,
-specifically support VXLAN network for bare metal nodes.
+This service plugin provides functionality for managing bare metal gateway connectivity in OpenStack Neutron, specifically support VXLAN network for bare metal nodes.
 
-A bare metal gateway is a device or software component that facilitates communication
-between virtual networks and physical networks, typically for bare metal servers.
-It enables the management and orchestration of bare metal resources within an OpenStack
-cloud environment.
-The service plugin manages the lifecycle of bare metal gateways, including their
-creation, deletion, and configuration. It also handles the assignment of ports to
-specific gateways, ensuring efficient and reliable network connectivity.
+A bare metal gateway is a device or software component that facilitates communication between virtual networks and physical networks, typically for bare metal servers. It enables the management and orchestration of bare metal resources within an OpenStack cloud environment.
 
-Functionality:
-* support VXLAN network for bare metal nodes
-* support security-group for bare metal nodes
-* support trunk port for bare metal nodes
-* bmgw High Availability
+The service plugin manages the lifecycle of bare metal gateways, including their creation, deletion, and configuration. It also handles the assignment of ports to specific gateways, ensuring efficient and reliable network connectivity.
+
+## Functionality
+- Support VXLAN network for bare metal nodes
+- Support security-group for bare metal nodes
+- Support trunk port for bare metal nodes
+- BMGW High Availability
 
 Features
 --------
