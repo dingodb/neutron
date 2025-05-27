@@ -61,20 +61,20 @@ Components
 
 Configuration
 ------------
-1. Enable the service plugin in neutron.conf::
+1. Enable the service plugin in neutron.conf:
 
-    [service_plugins]
-    bm_gw = neutron.services.bm_gw.plugin.BmGwPlugin
+    [DEFAULT]
+    service_plugins = bm_gw
 
-2. Enable the agent extension in openvswitch_agent.ini::
+2. Enable the agent extension in openvswitch_agent.ini:
 
     [agent]
-    extensions = bm_gw
     bm_gw = True
     bm_gw_brname = br-bmgw
 
 3. Pre-deployment Requirements:
     - Create br-bmgw bridge using deployment tools
+    - Set Open_vSwitch global : other_config: vlan-limit=2, to support QinQ
     - Add physical NIC to br-bmgw bridge for baremetal access
     - Configure OpenFlow protocol version 1.3
 
