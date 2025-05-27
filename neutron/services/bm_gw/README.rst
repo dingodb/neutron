@@ -9,11 +9,12 @@ A bare metal gateway is a device or software component that facilitates communic
 
 The service plugin manages the lifecycle of bare metal gateways, including their creation, deletion, and configuration. It also handles the assignment of ports to specific gateways, ensuring efficient and reliable network connectivity.
 
-## Functionality
-- Support VXLAN network for bare metal nodes
-- Support security-group for bare metal nodes
-- Support trunk port for bare metal nodes
-- BMGW High Availability
+Functionality
+--------
+    - Support VXLAN network for bare metal nodes
+    - Support security-group for bare metal nodes
+    - Support trunk port for bare metal nodes
+    - BMGW High Availability
 
 Features
 --------
