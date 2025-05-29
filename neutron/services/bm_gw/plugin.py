@@ -36,7 +36,9 @@ from oslo_messaging import Target
 from oslo_messaging import RPCClient
 
 from neutron_lib.services import base as service_base
+
 from neutron.services.tag import tag_plugin
+
 from neutron.services.bm_gw.rpc import server as rpc_server
 
 LOG = logging.getLogger(__name__)
@@ -355,3 +357,4 @@ class BmgwPlugin(service_base.ServicePluginBase):
             return tags_dict.get('tags', [])
         LOG.debug("BmgwPlugin, get_port_tags, tag_plugin not initialized successfully.")
         return []
+

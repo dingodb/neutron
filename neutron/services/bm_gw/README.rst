@@ -30,6 +30,7 @@ Features
 * Port Management
     - Subscribes to port update events
     - Manages OVS bridge configuration
+
     - Integrates with OpenVSwitch for network connectivity
 
 * Agent Integration
@@ -41,11 +42,14 @@ Components
 ----------
 1. Plugin (plugin.py)
     - BmGwPlugin: Core plugin implementation
+
     - Handles port scheduling and agent monitoring
+
     - Manages service state and RPC communication
 
 2. Agent Extension (agent/l2/extensions/bm_gw.py)
     - BmGwAgentExtension: OVS agent extension
+
     - Manages OVS bridge configuration
     - Handles port updates and tunnel events
 
@@ -55,12 +59,14 @@ Components
     - Implements OpenFlow rules for traffic steering
 
 4. RPC Layer (rpc/)
+
     - Server-side RPC implementation (server.py)
     - Agent-side RPC implementation (agent.py)
     - Bidirectional communication between plugin and agent
 
 Configuration
 ------------
+
 1. Enable the service plugin in neutron.conf:
 
     [DEFAULT]
@@ -80,11 +86,14 @@ Configuration
 
 4. Restart the neutron-server and neutron-openvswitch-agent services.
 
+
 RPC Communication
 ---------------
 The plugin and agent communicate through RPC for:
+
 * Port scheduling and binding updates
 * Tunnel status updates
+
 * Bridge management operations
 * Event notifications
 
@@ -92,6 +101,7 @@ The RPC layer provides both synchronous and asynchronous communication patterns.
 
 Bridge Management
 ---------------
+
 The bare metal gateway requires:
 * Pre-created OVS bridge (br-bmgw) for baremetal traffic
 * Physical NIC configuration in the bridge
@@ -103,6 +113,7 @@ Development
 To extend or modify this service:
 1. Plugin customization: Extend BmGwPlugin for new features
 2. Agent extension: Modify BmGwAgentExtension for new OVS capabilities
+
 3. Driver modifications: Update BmGwDriver for new port operations
 4. RPC additions: Add methods to RPC classes for new operations
 
@@ -124,3 +135,4 @@ Common issues and solutions:
    * Verify port scheduling status
    * Check agent availability
    * Examine port binding details
+
