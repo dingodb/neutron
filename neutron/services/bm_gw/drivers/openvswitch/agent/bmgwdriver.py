@@ -92,9 +92,7 @@ class BmGwDriver(object):
             LOG.error("BmGwDriver, process_port, Failed to process port %(port)s: %(error)s", {'port': port_id, 'error': e})
 
     def bmgw_port_update(self, context, resource, bmgwport, event_type):
-
         LOG.info("BmGwDriver, bmgw_port_update, Received port update notification, port count: %s and all ports info %s", len(bmgwport), bmgwport)
-
         port = bmgwport[0] if isinstance(bmgwport, list) and bmgwport else bmgwport
         LOG.info("BmGwDriver, bmgw_port_update, Received bmgw_port_update for port id: %s name:%s event_type %s", port.get('id'), port.get('name'), event_type)
         try:
