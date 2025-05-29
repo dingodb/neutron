@@ -36,6 +36,9 @@ from oslo_messaging import Target
 from oslo_messaging import RPCClient
 
 from neutron_lib.services import base as service_base
+
+from neutron.services.tag import tag_plugin
+
 from neutron.services.bm_gw.rpc import server as rpc_server
 
 LOG = logging.getLogger(__name__)
@@ -49,7 +52,9 @@ class BmgwPlugin(service_base.ServicePluginBase):
         super(BmgwPlugin, self).__init__()
         self._setup_rpc()
         self.register_callbacks()
-        
+        self.tag_plugin_instance = tag_plugin.TagPlugin()
+        directory.add_plugin('standard-attr-tag', self.tag_plugin_instance)
+
         # Cache to store scheduled ports: {port_id: {'host_id': host_id, 'timestamp': timestamp}}
         #self._scheduled_ports = {}
         LOG.info("BMGW plugin initialized")
@@ -284,19 +289,22 @@ class BmgwPlugin(service_base.ServicePluginBase):
             LOG.error("No available BMGW agents found for port %s", port_id)
             return None
 
-        # check port --extra-property to select agent host
-        # --extra-property bm_gw_host=bmhost1
-        extra_property = port.get('extra_property')
-        if extra_property:
-            bm_gw_host = extra_property.get('bm_gw_host')
+        # check port --tags to select agent host
+        # read the --tags value 'bm_gw_host=<host>'
+        tags = self.get_port_tags(context, port_id)
+        LOG.debug("BmgwPlugin,schedule_port_to_bmgw,port %(port)s --tags %(tags)s", {"port": port_id, "tags": tags})
+        tags = [tag for tag in tags if tag.startswith('bm_gw_host=')]
+        if tags:
+            bm_gw_host = tags[0].split('=')[1]
+            LOG.debug("BmgwPlugin,schedule_port_to_bmgw,port %(port)s --tags[bm_gw_host=%(bm_gw_host)s]", {"port": port_id, "bm_gw_host": bm_gw_host})
             if bm_gw_host:
                 agents = [agent for agent in agents if agent['host'] == bm_gw_host]
-                if not agents or len(agents) == 0:
-                    LOG.debug("BmgwPlugin,schedule_port_to_bmgw,No available BMGW agents found for port %s in --extra-property(bm_gw_host=%s), use random choice.", 
+                if not agents:
+                    LOG.debug("BmgwPlugin,schedule_port_to_bmgw, No available BMGW agents found for port %s in --tags[bm_gw_host=%s], use random choice.",
                     port_id, bm_gw_host)
                 else:
-                    LOG.info("BmgwPlugin,schedule_port_to_bmgw,Selected BMGW agent %(agent)s for port %(port)s in --extra-property(bm_gw_host=%s)",
-                    {"agent": bm_gw_host, "port": port_id, "bm_gw_host": bm_gw_host})
+                    LOG.debug("BmgwPlugin,schedule_port_to_bmgw, Read configuration from port %(port)s in --tags[bm_gw_host=%(bm_gw_host)s]",
+                    {"port": port_id, "bm_gw_host": bm_gw_host})
 
         # Randomly select an agent for simple load balancing
         # if port's --extra-property(bm_gw_host=%s) is set, the agents shoud be only one item, so random will return the only one.
@@ -339,3 +347,14 @@ class BmgwPlugin(service_base.ServicePluginBase):
             topic_name = 'bm_gw'
         target = Target(topic=topic_name, version='1.0')
         self.client = RPCClient(transport, target)
+
+    def get_port_tags(self, context, port_id):
+        #tag_plugin = directory.get_plugin('standard-attr-tag')
+        if self.tag_plugin_instance:
+            LOG.debug("BmgwPlugin,get_port_tags,get_tags for port %(port)s", {"port": port_id})
+            tags_dict = self.tag_plugin_instance.get_tags(context, resources.PORTS, port_id)
+            LOG.debug("BmgwPlugin,get_port_tags,get_tags for port %(port)s, tags_dict=%(tags)s", {"port": port_id, "tags": tags_dict})
+            return tags_dict.get('tags', [])
+        LOG.debug("BmgwPlugin, get_port_tags, tag_plugin not initialized successfully.")
+        return []
+
