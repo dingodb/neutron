@@ -62,9 +62,7 @@ def get_qbr_bridge_name(port_id):
 def gen_trunk_br_name(trunk_id):
     return ((constants.TRUNK_BR_PREFIX + trunk_id)[:constants.DEVICE_NAME_MAX_LEN])
 
-
 def get_port_attrs(port_id, port_mac=None, type=None, peer=None):
-
     external_ids = {}
     if port_mac:
         external_ids['attached-mac'] = str(port_mac)
@@ -141,9 +139,9 @@ class BmPort():
         self.qvo_name = get_qvo_port_name(port_id)
 
         self.bridge = BmgwBridge(cfg.CONF.AGENT.bm_gw_brname)
-
         # to_bridge can be trunk bridge (tbr-XXX) or br-int
         self.to_bridge = to_bridge
+
         self.qbr_bridge = None
         if self.ovs_hybrid_plug:
             self.qbr_bridge = linux_bridge.BridgeDevice(get_qbr_bridge_name(port_id))
@@ -178,7 +176,6 @@ class BmPort():
             self.qbr_bridge.addif(self.qvb_name)
             self.qbr_bridge.addif(self.tap_name)
             utils.execute(['ip', 'link', 'set', self.qbr_bridge._name, 'up'], run_as_root=True)
-
             port_int_attrs = get_port_attrs(self.port_id, self.mac)
         else:
             # create_veth_pair(self.name, self.qvo_name)
