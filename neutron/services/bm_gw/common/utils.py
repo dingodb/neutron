@@ -62,14 +62,20 @@ def get_qbr_bridge_name(port_id):
 def gen_trunk_br_name(trunk_id):
     return ((constants.TRUNK_BR_PREFIX + trunk_id)[:constants.DEVICE_NAME_MAX_LEN])
 
-def get_port_attrs(port_mac=None, port_id=None):
+def get_port_attrs(port_id, port_mac=None, type=None, peer=None):
     external_ids = {}
     if port_mac:
         external_ids['attached-mac'] = str(port_mac)
     if port_id:
         external_ids['iface-id'] = port_id
-    # attrs = [('type', ''), ('options', ''{'peer': peer_name}'')]
+    
     attrs = []
+    if type:
+        attrs.append(('type', type))
+    if peer:
+        attrs.append(('options', {'peer': peer}))
+    # attrs = [('type', ''), ('options', ''{'peer': peer_name}'')]
+
     if external_ids:
         attrs.append(
             ('external_ids', external_ids))
@@ -133,8 +139,9 @@ class BmPort():
         self.qvo_name = get_qvo_port_name(port_id)
 
         self.bridge = BmgwBridge(cfg.CONF.AGENT.bm_gw_brname)
+        # to_bridge can be trunk bridge (tbr-XXX) or br-int
         self.to_bridge = to_bridge
-        
+
         self.qbr_bridge = None
         if self.ovs_hybrid_plug:
             self.qbr_bridge = linux_bridge.BridgeDevice(get_qbr_bridge_name(port_id))
@@ -150,8 +157,6 @@ class BmPort():
         attached to the bmgw bridge.  Everything is done in a single
         OVSDB transaction so either all operations succeed or fail.
 
-        :param to_bridge: an integration bridge where peer endpoint of patch port
-                       will be created. (br-int or tbr-xxx)
         """
         # NOTE(jlibosva): OVSDB is an api so it doesn't matter whether we
         # use self.bridge or br_int
@@ -161,6 +166,9 @@ class BmPort():
         # take over the wiring process and everything that entails.
         # REVISIT(rossella_s): revisit this integration part, should tighter
         # control over the wiring logic for bm ports be required.
+        port_int_attrs = None
+        port_bm_attrs = None
+
         if self.ovs_hybrid_plug:
             create_veth_pair(self.name, self.tap_name)
             create_veth_pair(self.qvb_name, self.qvo_name)
@@ -168,11 +176,14 @@ class BmPort():
             self.qbr_bridge.addif(self.qvb_name)
             self.qbr_bridge.addif(self.tap_name)
             utils.execute(['ip', 'link', 'set', self.qbr_bridge._name, 'up'], run_as_root=True)
-
+            port_int_attrs = get_port_attrs(self.port_id, self.mac)
         else:
-            create_veth_pair(self.name, self.qvo_name)
+            # create_veth_pair(self.name, self.qvo_name)
+            # for ovs_hybrid_plug = False (case of DPDK), we patch rather than veth pair
+            # patch port can running in both user space and kernel space.
+            port_int_attrs = get_port_attrs(self.port_id, self.mac, constants.OVS_PATCH, self.name)
+            port_bm_attrs = get_port_attrs(self.port_id, self.mac, constants.OVS_PATCH, self.qvo_name)
 
-        port_int_attrs = get_port_attrs(self.mac, self.port_id)
         ovsdb = self.bridge.ovsdb
         with ovsdb.transaction() as txn:
             txn.add(ovsdb.add_port(self.to_bridge.br_name,
@@ -181,6 +192,9 @@ class BmPort():
                                 *port_int_attrs))
             txn.add(ovsdb.add_port(self.bridge.br_name,
                                 self.name))
+            if not self.ovs_hybrid_plug:
+                txn.add(ovsdb.db_set('Interface', self.name,
+                                *port_bm_attrs))
             txn.add(ovsdb.db_set('Port', self.name,
                                 ('vlan_mode', 'dot1q-tunnel'),
                                 ('tag', self.qinq),
@@ -219,7 +233,7 @@ class BmPort():
                 if peer_br_name and peer_br_name != 'br-int':
                     # delete trunk bridge
                     LOG.debug(f"bmgwdriver, bmport.unplug, spawn a job to delete trunk bridge {peer_br_name}")
-                    eventlet.spawn_n(self.del_trunk_bridge, peer_br_name)
+                    eventlet.spawn_after(2, self.del_trunk_bridge, peer_br_name)
                     # trk_br = TrunkBridge(peer_br_name)
                     # if trk_br.bridge_exists(peer_br_name):
                     #     LOG.debug(f"bmgwdriver, bmport.unplug, delete trunk bridge {peer_br_name}")
@@ -233,11 +247,12 @@ class BmPort():
                 self.qbr_bridge.delbr()
             delete_veth_pair(self.name, self.tap_name)
             delete_veth_pair(self.qvb_name, self.qvo_name)
-        else:
-            delete_veth_pair(self.name, self.qvo_name)
-        
+
+        # else:
+        #     delete_veth_pair(self.name, self.qvo_name)
+
         LOG.debug("Unplugged bm port %s from bridge %s", self.name, self.bridge.br_name)
-    
+
     def del_trunk_bridge(self, br_name):
         """Delete trunk bridge."""
         LOG.debug(f"bmgwdriver, bmport.del_trunk_bridge, delete trunk bridge {br_name}")

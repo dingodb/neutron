@@ -66,7 +66,7 @@ class BmGwDriver(object):
             if vnic_type == portbindings.VNIC_BAREMETAL:
                 if self.host == host and vif_type == portbindings.VIF_TYPE_OVS:
                     if not cfg.CONF.AGENT.bm_gw:
-                        LOG.error("BmGwDriver, process_port, bm_gw is not enabled, can not scheduler bmport on this host")
+                        LOG.error(f"BmGwDriver, process_port, bm_gw is not enabled, can not scheduler bmport({port_id}) on this host")
                         return
                     LOG.info("BmGwDriver, process_port, plug bmport %s", port_id)
                     if not bridge_name:
@@ -75,6 +75,10 @@ class BmGwDriver(object):
                     if bridge_name.startswith(constants.TRUNK_BR_PREFIX) and len(bridge_name) == constants.DEVICE_NAME_MAX_LEN:
                         to_bridge = utils.TrunkBridge(bridge_name)
                         to_bridge.verify()
+
+                    if not (qinq_id > 0 and qinq_id < 4094):
+                        LOG.error(f"BmGwDriver, process_port, failed to plug bmport {port_id} for qinq_id({qinq_id}) is invalid")
+                        return
 
                     bmport = utils.BmPort(port_id, to_bridge, mac, qinq_id, ovs_hybrid_plug)
                     bmport.plug()
@@ -88,6 +92,7 @@ class BmGwDriver(object):
             LOG.error("BmGwDriver, process_port, Failed to process port %(port)s: %(error)s", {'port': port_id, 'error': e})
 
     def bmgw_port_update(self, context, resource, bmgwport, event_type):
+        LOG.info("BmGwDriver, bmgw_port_update, Received port update notification, port count: %s and all ports info %s", len(bmgwport), bmgwport)
         port = bmgwport[0] if isinstance(bmgwport, list) and bmgwport else bmgwport
         LOG.info("BmGwDriver, bmgw_port_update, Received bmgw_port_update for port id: %s name:%s event_type %s", port.get('id'), port.get('name'), event_type)
         try:
