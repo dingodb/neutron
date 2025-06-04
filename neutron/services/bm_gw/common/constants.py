@@ -13,7 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Constants for bare metal gateway."""
+# mall@zetyun.com, 2025.5.20
+# create file constants.py
+# Constants for bare metal gateway.
 from neutron_lib import constants as nl_constants
 
 BMGW_AGENT = 'bmgw-agent'
