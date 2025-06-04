@@ -13,7 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities for bare metal gateway."""
+# mall@zetyun.com, 2025.5.20
+# create file utils.py
+# Utilities for bare metal gateway.
 
 import os
 import eventlet
@@ -92,7 +94,7 @@ def create_veth_pair(if1, if2, f1mac = None, f2mac = None):
 
         utils.execute(['ip', 'link', 'set', if1, 'up'], run_as_root=True)
         utils.execute(['ip', 'link', 'set', if2, 'up'], run_as_root=True)
-        LOG.debug("Created veth pair %s <-> %s", if1, if2)
+        LOG.debug(f"Created veth pair {if1} <-> {if2}")
 
 def delete_veth_pair(if1, if2):
     """Delete a veth pair if exists."""
@@ -101,7 +103,7 @@ def delete_veth_pair(if1, if2):
     elif ip_lib.device_exists(if2):
         utils.execute(['ip', 'link', 'del', if2], run_as_root=True)
 
-    LOG.debug("Deleted veth pair %s <-> %s", if1, if2)
+    LOG.debug(f"Deleted veth pair {if1} <-> {if2}")
 
 class BmgwBridge(ovs_lib.OVSBridge):
     """An OVS bm gw bridge.
@@ -146,7 +148,7 @@ class BmPort():
         if self.ovs_hybrid_plug:
             self.qbr_bridge = linux_bridge.BridgeDevice(get_qbr_bridge_name(port_id))
         #self.ofport_id = self.bridge.get_port_ofport(self.name)
-        LOG.debug("Init bm port Object %s", self.name)
+        LOG.debug(f"Init bm port Object {self.name}")
 
     def plug(self):
         ""
@@ -201,7 +203,7 @@ class BmPort():
                                 ('other_config', {'qinq-ethtype':'802.1q'})))
 
         #self.ofport_id = self.bridge.get_port_ofport(self.name)
-        LOG.debug("Plugged bm port %s to bridge %s", self.name, self.bridge.br_name)
+        LOG.debug(f"Plugged bm port {self.name} to bridge {self.bridge.br_name}")
 
     def unplug(self):
         """Unplug the bmport from bridge.
@@ -256,6 +258,7 @@ class BmPort():
     def del_trunk_bridge(self, br_name):
         """Delete trunk bridge."""
         LOG.debug(f"bmgwdriver, bmport.del_trunk_bridge, delete trunk bridge {br_name}")
+
         br = TrunkBridge(br_name)
         if br.bridge_exists(br_name):
             br.destroy()
@@ -274,4 +277,4 @@ class TrunkBridge(ovs_lib.OVSBridge):
     def verify(self):
         if not self.bridge_exists(self.br_name):
             self.create()
-            LOG.debug("bmgwdriver Created trunk bridge %s", self.br_name)
+            LOG.debug(f"bmgwdriver Created trunk bridge {self.br_name}")

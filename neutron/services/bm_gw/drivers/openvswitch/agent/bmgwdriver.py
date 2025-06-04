@@ -68,7 +68,7 @@ class BmGwDriver(object):
                     if not cfg.CONF.AGENT.bm_gw:
                         LOG.error(f"BmGwDriver, process_port, bm_gw is not enabled, can not scheduler bmport({port_id}) on this host")
                         return
-                    LOG.info("BmGwDriver, process_port, plug bmport %s", port_id)
+                    LOG.info(f"BmGwDriver, process_port, plug bmport {port_id}")
                     if not bridge_name:
                         LOG.error(f"BmGwDriver, process_port, failed to plug bmport {port_id} for bridge_name is empty")
                         return
@@ -83,22 +83,39 @@ class BmGwDriver(object):
                     bmport = utils.BmPort(port_id, to_bridge, mac, qinq_id, ovs_hybrid_plug)
                     bmport.plug()
                 else:
-                    LOG.info("BmGwDriver, process_port, unplug bmport %s", port_id)
+                    LOG.info(f"BmGwDriver, process_port, unplug bmport {port_id}")
                     bmport = utils.BmPort(port_id, to_bridge, mac, qinq_id, ovs_hybrid_plug)
                     bmport.unplug()
             else:
-                LOG.info("BmGwDriver, process_port, ignore non-baremetal port %s", port_id)
+                LOG.info(f"BmGwDriver, process_port, ignore non-baremetal port {port_id}")
         except Exception as e:
-            LOG.error("BmGwDriver, process_port, Failed to process port %(port)s: %(error)s", {'port': port_id, 'error': e})
+            LOG.error(f"BmGwDriver, process_port, Failed to process port {port_id}: {e}")
 
     def bmgw_port_update(self, context, resource, bmgwport, event_type):
-        LOG.info("BmGwDriver, bmgw_port_update, Received port update notification, port count: %s and all ports info %s", len(bmgwport), bmgwport)
-        port = bmgwport[0] if isinstance(bmgwport, list) and bmgwport else bmgwport
-        LOG.info("BmGwDriver, bmgw_port_update, Received bmgw_port_update for port id: %s name:%s event_type %s", port.get('id'), port.get('name'), event_type)
-        try:
-            self.process_port(port)
-        except Exception as e:
-            LOG.error("BmGwDriver, bmgw_port_update, Failed to process bmgw_port_update for port id:%(port)s: %(error)s", {'port': port.get('id'), 'error': e})
+        if not bmgwport:
+            LOG.warning("BmGwDriver, bmgw_port_update, Received empty port update notification")
+            return
+            
+        # make sure bmgwport is a list
+        ports = bmgwport if isinstance(bmgwport, list) else [bmgwport]
+        port_count = len(ports)
+        
+        LOG.info(f"BmGwDriver, bmgw_port_update, Received port update notification, "
+                f"port count: {port_count} and event_type: {event_type}")
+        
+        success_count = 0
+        for port in ports:
+            port_id = port.get('id', 'unknown')
+            port_name = port.get('name', 'unknown')
+            LOG.debug(f"BmGwDriver, bmgw_port_update, Processing port id: {port_id} name: {port_name}")
+            
+            try:
+                self.process_port(port)
+                success_count += 1
+            except Exception as e:
+                LOG.error(f"BmGwDriver, bmgw_port_update, Failed to process port id: {port_id}: {e}")
+        
+        LOG.info(f"BmGwDriver, bmgw_port_update, Completed processing {success_count} of {port_count} ports")
 
 def bmgwinit_handler(resource, event, trigger, payload=None):
     """Handler for agent init event."""

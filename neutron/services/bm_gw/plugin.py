@@ -111,26 +111,16 @@ class BmgwPlugin(service_base.ServicePluginBase):
                     # Schedule port to a new agent
                     new_host = self.schedule_port_to_bmgw(admin_context, port)
                     if not new_host:
-                        LOG.error("Failed to reschedule port %s", port_id)
+                        LOG.error(f"Failed to reschedule port {port_id}")
                         continue
                     # Update port binding
                     port_binding = {
                         'binding:host_id': new_host
                     }
                     plugin.update_port(admin_context, port_id, {'port': port_binding})
-                    LOG.info("[bmgw plugin : _handle_agent_update], Rescheduled port %s to agent %s", port_id, new_host)
-                    # 通知新host的agent去执行port创建
-                    # target = Target(topic=messaging.TOPIC_BM_GW_RESOURCE, version='1.0')
-                    # target_host = new_host
-                    # target = Target(topic=messaging.TOPIC_BM_GW_RESOURCE, version='1.0', host=target_host)
-                    # self.client.prepare(target=target).cast(context, 'bmgw_port_created_to_agent', port=port, host=new_host)
-                    # 更新缓存
-                    # self._scheduled_ports[down_host].remove(port_id)
-                    # if new_host not in self._scheduled_ports:
-                    #     self._scheduled_ports[new_host] = []
-                    # self._scheduled_ports[new_host].append(port_id)
+                    LOG.info(f"[bmgw plugin : _handle_agent_update], Rescheduled port {port_id} to agent {new_host}")
                 except Exception as e:
-                    LOG.error("[bmgw plugin : _handle_agent_update], Failed to process port %s: %s", port_id, e)
+                    LOG.error(f"[bmgw plugin : _handle_agent_update], Failed to process port {port_id}: {e}")
 
 
 
@@ -187,17 +177,17 @@ class BmgwPlugin(service_base.ServicePluginBase):
             network = plugin.get_network(admin_context, network_id)
             network_type = network.get('provider:network_type')
             if network_type != constants.TYPE_VXLAN:
-                LOG.debug("BmgwPlugin,_handle_port_update: network type is not VXLAN, type=%s, return.", network_type)
+                LOG.debug("BmgwPlugin,_handle_port_update: network type is not VXLAN, type={network_type}, return.")
                 return
             
-            LOG.info("BmgwPlugin,_handle_port_update, Processing baremetal port update for port %s", port_id)
+            LOG.info(f"BmgwPlugin,_handle_port_update, Processing baremetal port update for port {port_id}")
             # Schedule port to a BMGW agent
             host = self.schedule_port_to_bmgw(admin_context, port)
             if not host:
-                LOG.error("Failed to schedule port %s to any BMGW agent", port_id)
+                LOG.error(f"Failed to schedule port {port_id} to any BMGW agent")
                 return
             
-            LOG.info("BmgwPlugin,_handle_port_update, port %s scheduled to BMGW agent %s", port_id, host)
+            LOG.info(f"BmgwPlugin,_handle_port_update, port {port_id} scheduled to BMGW agent {host}")
             # Update port binding with OVS info and host ID
             port_binding = {
                 # 'binding:vif_type': portbindings.VIF_TYPE_OVS,
@@ -212,12 +202,12 @@ class BmgwPlugin(service_base.ServicePluginBase):
             plugin.update_port(admin_context,
                              port_id,
                              {'port': port_binding})
-            LOG.debug("BmgwPlugin,_handle_port_update,Updated port %s binding:host_id to OVS BMGW agent %s", port_id, host)
+            LOG.debug(f"BmgwPlugin,_handle_port_update,Updated port {port_id} binding:host_id to OVS BMGW agent {host}")
 
             #target = Target(topic=messaging.TOPIC_BM_GW_RESOURCE, version='1.0', host=host)
             #self.agent_rpc.bmgw_port_created_to_agent(context, port, host)
         except Exception as e:
-            LOG.error("Failed to process port %s: %s", port_id, e)
+            LOG.error(f"Failed to process port {port_id}: {e}")
 
     def get_bmgw_ovs_agents(self, context, active=None, admin_up=None, host=None):
         """Get OVS agents that support bare metal gateway functionality.
@@ -244,14 +234,14 @@ class BmgwPlugin(service_base.ServicePluginBase):
             filters['host'] = [host]
 
         agents = core_plugin.get_agents(context, filters=filters)
-        LOG.info("BmgwPlugin,get_bmgw_ovs_agents,Found %d OVS agents", len(agents))
+        LOG.info(f"BmgwPlugin,get_bmgw_ovs_agents,Found {len(agents)} OVS agents")
         # Filter agents with bm_gw configuration
         agents = [
             agent for agent in agents
             if agent.get('configurations', {}).get('bm_gw') is True 
             # and agent['alive'] == active
         ]
-        LOG.info("BmgwPlugin,get_bmgw_ovs_agents,Found %d OVS agents with bm_gw", len(agents))
+        LOG.info(f"BmgwPlugin,get_bmgw_ovs_agents,Found {len(agents)} OVS agents with bm_gw")
         # Filter by alive status if requested
         # if up is not None:
         #     curr_time = timeutils.utcnow(with_timezone=True)
@@ -284,32 +274,30 @@ class BmgwPlugin(service_base.ServicePluginBase):
         # Get all active and alive BMGW agents
         agents = self.get_bmgw_ovs_agents(context, active=True, admin_up=True)
         if not agents:
-            LOG.error("No available BMGW agents found for port %s", port_id)
+            LOG.error(f"No available BMGW agents found for port {port_id}")
             return None
 
         # check port --tags to select agent host
         # read the --tags value 'bm_gw_host=<host>'
         tags = self.get_port_tags(context, port_id)
-        LOG.debug("BmgwPlugin,schedule_port_to_bmgw,port %(port)s --tags %(tags)s", {"port": port_id, "tags": tags})
+        LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw,port {port_id} --tags {tags}")
         tags = [tag for tag in tags if tag.startswith('bm_gw_host=')]
         if tags:
             bm_gw_host = tags[0].split('=')[1]
-            LOG.debug("BmgwPlugin,schedule_port_to_bmgw,port %(port)s --tags[bm_gw_host=%(bm_gw_host)s]", {"port": port_id, "bm_gw_host": bm_gw_host})
+            LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw,port {port_id} --tags[bm_gw_host={bm_gw_host}]")
             if bm_gw_host:
                 agents = [agent for agent in agents if agent['host'] == bm_gw_host]
                 if not agents:
-                    LOG.debug("BmgwPlugin,schedule_port_to_bmgw, No available BMGW agents found for port %s in --tags[bm_gw_host=%s], use random choice.",
-                    port_id, bm_gw_host)
+                    LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw, No available BMGW agents found for port {port_id} in --tags[bm_gw_host={bm_gw_host}], use random choice.")
                 else:
-                    LOG.debug("BmgwPlugin,schedule_port_to_bmgw, Read configuration from port %(port)s in --tags[bm_gw_host=%(bm_gw_host)s]",
-                    {"port": port_id, "bm_gw_host": bm_gw_host})
+                    LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw, Read configuration from port {port_id} in --tags[bm_gw_host={bm_gw_host}]")
 
         # Randomly select an agent for simple load balancing
-        # if port's --extra-property(bm_gw_host=%s) is set, the agents shoud be only one item, so random will return the only one.
+        # if port's --tag bm_gw_host=<host> is set, the agents shoud be only one item, so random will return the only one.
         selected_agent = random.choice(agents)
         host = selected_agent['host']
         
-        LOG.info("BmgwPlugin,schedule_port_to_bmgw,Selected BMGW agent %(agent)s for port %(port)s", {"agent": host, "port": port_id})
+        LOG.info(f"BmgwPlugin,schedule_port_to_bmgw,Selected BMGW agent {host} for port {port_id}")
 
         return host
 
@@ -349,9 +337,9 @@ class BmgwPlugin(service_base.ServicePluginBase):
     def get_port_tags(self, context, port_id):
         #tag_plugin = directory.get_plugin('standard-attr-tag')
         if self.tag_plugin_instance:
-            LOG.debug("BmgwPlugin,get_port_tags,get_tags for port %(port)s", {"port": port_id})
+            LOG.debug(f"BmgwPlugin,get_port_tags,get_tags for port {port_id}")
             tags_dict = self.tag_plugin_instance.get_tags(context, resources.PORTS, port_id)
-            LOG.debug("BmgwPlugin,get_port_tags,get_tags for port %(port)s, tags_dict=%(tags)s", {"port": port_id, "tags": tags_dict})
+            LOG.debug(f"BmgwPlugin,get_port_tags,get_tags for port {port_id}, tags_dict={tags_dict}")
             return tags_dict.get('tags', [])
         LOG.debug("BmgwPlugin, get_port_tags, tag_plugin not initialized successfully.")
         return []
