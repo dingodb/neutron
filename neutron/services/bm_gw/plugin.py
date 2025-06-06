@@ -186,7 +186,7 @@ class BmgwPlugin(service_base.ServicePluginBase):
             if not host:
                 LOG.error(f"Failed to schedule port {port_id} to any BMGW agent")
                 return
-            
+
             LOG.info(f"BmgwPlugin,_handle_port_update, port {port_id} scheduled to BMGW agent {host}")
             # Update port binding with OVS info and host ID
             port_binding = {
@@ -197,7 +197,7 @@ class BmgwPlugin(service_base.ServicePluginBase):
                 # },
                 'binding:host_id': host
             }
-            
+
             # Update port binding
             plugin.update_port(admin_context,
                              port_id,
@@ -209,7 +209,7 @@ class BmgwPlugin(service_base.ServicePluginBase):
         except Exception as e:
             LOG.error(f"Failed to process port {port_id}: {e}")
 
-    def get_bmgw_ovs_agents(self, context, active=None, admin_up=None, host=None):
+    def get_bmgw_ovs_agents(self, context, port_qinq_vlan_id, active=None, admin_up=None, host=None):
         """Get OVS agents that support bare metal gateway functionality.
 
         :param context: request context
@@ -239,7 +239,7 @@ class BmgwPlugin(service_base.ServicePluginBase):
         agents = [
             agent for agent in agents
             if agent.get('configurations', {}).get('bm_gw') is True 
-            # and agent['alive'] == active
+            and self.vlan_in_ranges(port_qinq_vlan_id, agent.get('configurations', {}).get('bm_gw_vlan_range'))
         ]
         LOG.info(f"BmgwPlugin,get_bmgw_ovs_agents,Found {len(agents)} OVS agents with bm_gw")
         # Filter by alive status if requested
@@ -271,8 +271,26 @@ class BmgwPlugin(service_base.ServicePluginBase):
             LOG.error("Invalid port: no port ID found")
             return None
 
+        profile = port.get('binding:profile')
+        if not profile:
+            LOG.debug(f"BmgwPlugin,_handle_port_update: port {port_id} profile is None, return.")
+            return None
+        
+        if profile.get('local_link_information') is None:
+            LOG.debug(f"BmgwPlugin,_handle_port_update: port {port_id} local_link_information is None, return.")
+            return None
+        
+        if profile.get('local_link_information')[0].get('switch_info') is None:
+            LOG.debug(f"BmgwPlugin,_handle_port_update: port {port_id} switch_info is None, return.")
+            return None
+
+        port_qinq_vlan_id = profile.get('local_link_information')[0].get('switch_info')
+        if not port_qinq_vlan_id or port_qinq_vlan_id < 0 or port_qinq_vlan_id > 4094:
+            LOG.debug(f"BmgwPlugin,_handle_port_update: port {port_id} qinq_vlan_id is invalid, return.")
+            return None
+
         # Get all active and alive BMGW agents
-        agents = self.get_bmgw_ovs_agents(context, active=True, admin_up=True)
+        agents = self.get_bmgw_ovs_agents(context, port_qinq_vlan_id, active=True, admin_up=True)
         if not agents:
             LOG.error(f"No available BMGW agents found for port {port_id}")
             return None
@@ -343,3 +361,23 @@ class BmgwPlugin(service_base.ServicePluginBase):
             return tags_dict.get('tags', [])
         LOG.debug("BmgwPlugin, get_port_tags, tag_plugin not initialized successfully.")
         return []
+
+    # vlan range format: 100:200,300,400:500
+    def vlan_in_ranges(vlan_id, vlan_range_str):
+        items = vlan_range_str.split(",")
+        for item in items:
+            item = item.strip()
+            if ":" in item:
+                try:
+                    start, end = map(int, item.split(":"))
+                    if start <= int(vlan_id) <= end:
+                        return True
+                except ValueError:
+                    return False
+            else:
+                try:
+                    if int(vlan_id) == int(item):
+                        return True
+                except ValueError:
+                    return False
+        return False
