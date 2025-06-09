@@ -64,7 +64,7 @@ class BmGwDriver(object):
             to_bridge = self.ovs_agent.int_br
 
             if vnic_type == portbindings.VNIC_BAREMETAL:
-                if self.host == host and vif_type == portbindings.VIF_TYPE_OVS:
+                if self.host == host and (vif_type == portbindings.VIF_TYPE_OVS or vif_type == portbindings.VIF_TYPE_VHOST_USER):
                     if not cfg.CONF.AGENT.bm_gw:
                         LOG.error(f"BmGwDriver, process_port, bm_gw is not enabled, can not scheduler bmport({port_id}) on this host")
                         return
