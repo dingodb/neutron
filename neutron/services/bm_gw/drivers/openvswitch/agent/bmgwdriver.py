@@ -50,7 +50,7 @@ class BmGwDriver(object):
         if not self.br_bmgw.exists():
             LOG.error(f"BmGwDriver, bm_gw bridge {self.br_bmgw.br_name} not exists")
 
-    def process_port(self, port):
+    def process_port(self, port, event_type):
         LOG.info("BEGIN: process_port [")
         LOG.debug(f"Type of port: {type(port)}")
         LOG.debug(f"Content of port: {port}")
@@ -63,12 +63,12 @@ class BmGwDriver(object):
             host, vnic_type, vif_type, mac, qinq_id, bridge_name, ovs_hybrid_plug = parse_port(port)
             to_bridge = self.ovs_agent.int_br
 
-            if vnic_type == portbindings.VNIC_BAREMETAL:
+            if vnic_type == portbindings.VNIC_BAREMETAL or event_type == 'deleted':
                 if self.host == host and (vif_type == portbindings.VIF_TYPE_OVS or vif_type == portbindings.VIF_TYPE_VHOST_USER):
                     if not cfg.CONF.AGENT.bm_gw:
                         LOG.error(f"BmGwDriver, process_port, bm_gw is not enabled, can not scheduler bmport({port_id}) on this host")
                         return
-                    LOG.info(f"BmGwDriver, process_port, plug bmport {port_id}")
+                    LOG.info(f"BmGwDriver, process_port, plug bmport {port_id}, event_type={event_type}")
                     if not bridge_name:
                         LOG.error(f"BmGwDriver, process_port, failed to plug bmport {port_id} for bridge_name is empty")
                         return
@@ -83,7 +83,7 @@ class BmGwDriver(object):
                     bmport = utils.BmPort(port_id, to_bridge, mac, qinq_id, ovs_hybrid_plug)
                     bmport.plug()
                 else:
-                    LOG.info(f"BmGwDriver, process_port, unplug bmport {port_id}")
+                    LOG.info(f"BmGwDriver, process_port, unplug bmport {port_id}, event_type={event_type}")
                     bmport = utils.BmPort(port_id, to_bridge, mac, qinq_id, ovs_hybrid_plug)
                     bmport.unplug()
             else:
@@ -110,7 +110,7 @@ class BmGwDriver(object):
             LOG.debug(f"BmGwDriver, bmgw_port_update, Processing port id: {port_id} name: {port_name}")
             
             try:
-                self.process_port(port)
+                self.process_port(port, event_type)
                 success_count += 1
             except Exception as e:
                 LOG.error(f"BmGwDriver, bmgw_port_update, Failed to process port id: {port_id}: {e}")
@@ -138,13 +138,15 @@ def unregister():
 
 def parse_port(port):
     """Parse the port."""
-    mac = str(port.mac_address)
+    mac = None
+    if 'mac_address' in port.fields and port.obj_attr_is_set('mac_address'):
+        mac = str(port.mac_address)
     host = None
     vif_type = None
     vnic_type = None
     qinq_id = int(0)
     bridge_name = None
-    ovs_hybrid_plug = True
+    ovs_hybrid_plug = False
     bindings = port.bindings
 
     if bindings is not None:

@@ -130,9 +130,9 @@ class BmgwBridge(ovs_lib.OVSBridge):
     
 class BmPort():
     """A Bm port."""
-    def __init__(self, port_id, to_bridge, mac = str(None), qinq = 0, ovs_hybrid_plug = True):
+    def __init__(self, port_id, to_bridge, mac = None, qinq = 0, ovs_hybrid_plug = True):
         self.port_id = port_id
-        self.mac = mac
+        self.mac = str(mac) if mac else None
         self.qinq = qinq
         self.ovs_hybrid_plug = ovs_hybrid_plug
         self.name = get_bmport_name(port_id)
