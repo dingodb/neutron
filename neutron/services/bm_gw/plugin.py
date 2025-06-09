@@ -284,7 +284,7 @@ class BmgwPlugin(service_base.ServicePluginBase):
             LOG.debug(f"BmgwPlugin,_handle_port_update: port {port_id} switch_info is None, return.")
             return None
 
-        port_qinq_vlan_id = profile.get('local_link_information')[0].get('switch_info')
+        port_qinq_vlan_id = int(profile.get('local_link_information')[0].get('switch_info'))
         if not port_qinq_vlan_id or port_qinq_vlan_id < 0 or port_qinq_vlan_id > 4094:
             LOG.debug(f"BmgwPlugin,_handle_port_update: port {port_id} qinq_vlan_id is invalid, return.")
             return None
@@ -363,7 +363,7 @@ class BmgwPlugin(service_base.ServicePluginBase):
         return []
 
     # vlan range format: 100:200,300,400:500
-    def vlan_in_ranges(vlan_id, vlan_range_str):
+    def vlan_in_ranges(self, vlan_id, vlan_range_str):
         items = vlan_range_str.split(",")
         for item in items:
             item = item.strip()
