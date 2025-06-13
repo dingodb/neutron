@@ -28,6 +28,8 @@ from oslo_log import log as logging
 from neutron.services.bm_gw.common import utils
 from neutron.services.bm_gw.common import constants
 from neutron.services.bm_gw.rpc import agent as agent_rpc
+from neutron.api.rpc.callbacks import events as rpc_events
+from neutron_lib.plugins.ml2 import ovs_constants
 
 LOG = logging.getLogger(__name__)
 
@@ -63,7 +65,7 @@ class BmGwDriver(object):
             host, vnic_type, vif_type, mac, qinq_id, bridge_name, ovs_hybrid_plug = parse_port(port)
             to_bridge = self.ovs_agent.int_br
 
-            if vnic_type == portbindings.VNIC_BAREMETAL or event_type == 'deleted':
+            if vnic_type == portbindings.VNIC_BAREMETAL or event_type == rpc_events.DELETED:
                 if self.host == host and (vif_type == portbindings.VIF_TYPE_OVS or vif_type == portbindings.VIF_TYPE_VHOST_USER):
                     if not cfg.CONF.AGENT.bm_gw:
                         LOG.error(f"BmGwDriver, process_port, bm_gw is not enabled, can not scheduler bmport({port_id}) on this host")
@@ -73,7 +75,8 @@ class BmGwDriver(object):
                         LOG.error(f"BmGwDriver, process_port, failed to plug bmport {port_id} for bridge_name is empty")
                         return
                     if bridge_name.startswith(constants.TRUNK_BR_PREFIX) and len(bridge_name) == constants.DEVICE_NAME_MAX_LEN:
-                        to_bridge = utils.TrunkBridge(bridge_name)
+                        datapath_type = ovs_constants.OVS_DATAPATH_NETDEV if vif_type == portbindings.VIF_TYPE_VHOST_USER else ovs_constants.OVS_DATAPATH_SYSTEM
+                        to_bridge = utils.TrunkBridge(bridge_name, datapath_type)
                         to_bridge.verify()
 
                     if not (qinq_id > 0 and qinq_id < 4094):

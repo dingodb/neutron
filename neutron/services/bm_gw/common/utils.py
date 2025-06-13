@@ -26,6 +26,7 @@ from neutron.agent.common import ovs_lib
 from neutron.agent.linux import utils
 from oslo_log import log as logging
 from neutron.services.bm_gw.common import constants
+from neutron_lib.plugins.ml2 import ovs_constants
 
 LOG = logging.getLogger(__name__)
 
@@ -271,8 +272,8 @@ class TrunkBridge(ovs_lib.OVSBridge):
                       \ 
                        bmport-peer <-> tbr-xxxxxxxx-x (trunk bridge)
     """
-    def __init__(self, name):
-        super(TrunkBridge, self).__init__(name)
+    def __init__(self, name, datapath_type=ovs_constants.OVS_DATAPATH_SYSTEM):
+        super(TrunkBridge, self).__init__(name, datapath_type)
 
     def verify(self):
         if not self.bridge_exists(self.br_name):
