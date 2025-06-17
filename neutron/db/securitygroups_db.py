@@ -109,12 +109,8 @@ class SecurityGroupDbMixin(
                 return self.get_security_group(context, existing_def_sg_id)
 
         with db_api.CONTEXT_WRITER.using(context):
-            if default_sg:
-                delta = sg_default_rules_obj.SecurityGroupDefaultRule.count(
-                    context, used_in_default_sg=True)
-            else:
-                delta = sg_default_rules_obj.SecurityGroupDefaultRule.count(
-                    context, used_in_non_default_sg=True)
+            delta = len(ext_sg.sg_supported_ethertypes)
+            delta = delta * 2 if default_sg else delta
             quota.QUOTAS.quota_limit_check(context, tenant_id,
                                            security_group_rule=delta)
 
@@ -323,7 +319,7 @@ class SecurityGroupDbMixin(
                'stateful': security_group['stateful'],
                'tenant_id': security_group['tenant_id'],
                'description': security_group['description'],
-               'standard_attr_id': security_group.db_obj.standard_attr_id,
+               'standard_attr_id': security_group.db_obj.standard_attr.id,
                'shared': security_group['shared'],
                }
         if security_group.rules:
@@ -498,7 +494,7 @@ class SecurityGroupDbMixin(
             'remote_address_group_id': rule_obj[
                 'remote_address_group_id'],
             'remote_group_id': rule_obj['remote_group_id'],
-            'standard_attr_id': rule_obj.db_obj.standard_attr_id,
+            'standard_attr_id': rule_obj.db_obj.standard_attr.id,
             'description': rule_obj['description'],
             'used_in_default_sg': rule_obj['used_in_default_sg'],
             'used_in_non_default_sg': rule_obj['used_in_non_default_sg']
