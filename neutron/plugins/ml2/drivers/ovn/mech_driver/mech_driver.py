@@ -19,6 +19,7 @@ import datetime
 import functools
 import multiprocessing
 import operator
+import signal
 import threading
 import types
 import uuid
@@ -42,7 +43,6 @@ from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_db import exception as os_db_exc
 from oslo_log import log
-from oslo_service import service as oslo_service
 from oslo_utils import timeutils
 from ovsdbapp.backend.ovs_idl import idlutils
 
@@ -316,9 +316,8 @@ class OVNMechanismDriver(api.MechanismDriver):
         themselves to the hash ring.
         """
         # Attempt to remove the node from the ring when the worker stops
-        sh = oslo_service.SignalHandler()
         atexit.register(self._remove_node_from_hash_ring)
-        sh.add_handler("SIGTERM", self._remove_node_from_hash_ring)
+        signal.signal(signal.SIGTERM, self._remove_node_from_hash_ring)
 
         admin_context = n_context.get_admin_context()
         if not self._hash_ring_probe_event.is_set():
@@ -407,11 +406,6 @@ class OVNMechanismDriver(api.MechanismDriver):
             context, security_group['id'],
             ovn_const.TYPE_SECURITY_GROUPS,
             std_attr_id=security_group['standard_attr_id'])
-        for sg_rule in security_group['security_group_rules']:
-            ovn_revision_numbers_db.create_initial_revision(
-                context, sg_rule['id'],
-                ovn_const.TYPE_SECURITY_GROUP_RULES,
-                std_attr_id=sg_rule['standard_attr_id'])
 
     def _create_security_group(self, resource, event, trigger, payload):
         context = payload.context
