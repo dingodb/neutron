@@ -62,7 +62,7 @@ class BmGwDriver(object):
         port_id = port['id']
 
         try:
-            host, vnic_type, vif_type, mac, qinq_id, bridge_name, ovs_hybrid_plug = parse_port(port)
+            host, vnic_type, vif_type, mac, qinq_id, bridge_name, ovs_hybrid_plug, datapath_type = parse_port(port)
             to_bridge = self.ovs_agent.int_br
 
             if vnic_type == portbindings.VNIC_BAREMETAL or event_type == rpc_events.DELETED:
@@ -75,7 +75,7 @@ class BmGwDriver(object):
                         LOG.error(f"BmGwDriver, process_port, failed to plug bmport {port_id} for bridge_name is empty")
                         return
                     if bridge_name.startswith(constants.TRUNK_BR_PREFIX) and len(bridge_name) == constants.DEVICE_NAME_MAX_LEN:
-                        datapath_type = ovs_constants.OVS_DATAPATH_NETDEV if vif_type == portbindings.VIF_TYPE_VHOST_USER else ovs_constants.OVS_DATAPATH_SYSTEM
+                        #datapath_type = ovs_constants.OVS_DATAPATH_NETDEV if vif_type == portbindings.VIF_TYPE_VHOST_USER else ovs_constants.OVS_DATAPATH_SYSTEM
                         to_bridge = utils.TrunkBridge(bridge_name, datapath_type)
                         to_bridge.verify()
 
@@ -149,7 +149,8 @@ def parse_port(port):
     vnic_type = None
     qinq_id = int(0)
     bridge_name = None
-    ovs_hybrid_plug = False
+    datapath_type = None
+    ovs_hybrid_plug = True
     bindings = port.bindings
 
     if bindings is not None:
@@ -166,7 +167,9 @@ def parse_port(port):
         if vif_details is not None:     
             bridge_name = vif_details.get('bridge_name')
             ovs_hybrid_plug = bool(vif_details.get('ovs_hybrid_plug'))
+            datapath_type = vif_details.get('datapath_type')
     
     LOG.debug(f"BmGwDriver, parse_port, host={host}, vnic_type={vnic_type}, vif_type={vif_type}, " \
-              f"mac:={mac}, qinq_id={qinq_id}, bridge_name={bridge_name}, ovs_hybrid_plug={ovs_hybrid_plug}")
-    return host, vnic_type, vif_type, mac, int(qinq_id), str(bridge_name), bool(ovs_hybrid_plug)
+              f"mac:={mac}, qinq_id={qinq_id}, bridge_name={bridge_name}, ovs_hybrid_plug={ovs_hybrid_plug}, " \
+              f"datapath_type={datapath_type}")
+    return host, vnic_type, vif_type, mac, int(qinq_id), str(bridge_name), bool(ovs_hybrid_plug), str(datapath_type)
