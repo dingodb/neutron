@@ -101,10 +101,11 @@ def delete_veth_pair(if1, if2):
     """Delete a veth pair if exists."""
     if ip_lib.device_exists(if1):
         utils.execute(['ip', 'link', 'del', if1], run_as_root=True)
+        LOG.debug(f"Deleted veth pair {if1} <-> {if2}")
     elif ip_lib.device_exists(if2):
         utils.execute(['ip', 'link', 'del', if2], run_as_root=True)
+        LOG.debug(f"Deleted veth pair {if2} <-> {if1}")
 
-    LOG.debug(f"Deleted veth pair {if1} <-> {if2}")
 
 class BmgwBridge(ovs_lib.OVSBridge):
     """An OVS bm gw bridge.
