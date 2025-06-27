@@ -176,8 +176,8 @@ class BmgwPlugin(service_base.ServicePluginBase):
 
             network = plugin.get_network(admin_context, network_id)
             network_type = network.get('provider:network_type')
-            if network_type != constants.TYPE_VXLAN:
-                LOG.debug("BmgwPlugin,_handle_port_update: network type is not VXLAN, type={network_type}, return.")
+            if network_type not in (constants.TYPE_VXLAN, constants.TYPE_VLAN):
+                LOG.debug("BmgwPlugin,_handle_port_update: network type is not VXLAN or VLAN, type={network_type}, return.")
                 return
             
             LOG.info(f"BmgwPlugin,_handle_port_update, Processing baremetal port update for port {port_id}")
