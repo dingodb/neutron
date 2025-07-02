@@ -169,10 +169,10 @@ class BmgwPlugin(service_base.ServicePluginBase):
             plugin = directory.get_plugin()
             admin_context = context.get_admin_context()
 
-            bmagents = plugin.get_agents(admin_context, filters={'host': [bmhostid], 'agent_type': ['Baremetal Node']})
-            if not bmagents or len(bmagents) == 0:
-                LOG.debug(f"BmgwPlugin,_handle_port_update: port pre attached host {bmhostid} is not a baremetal node, return.")
-                return
+            # bmagents = plugin.get_agents(admin_context, filters={'host': [bmhostid], 'agent_type': ['Baremetal Node']})
+            # if not bmagents or len(bmagents) == 0:
+            #     LOG.debug(f"BmgwPlugin,_handle_port_update: port pre attached host {bmhostid} is not a baremetal node, return.")
+            #     return
 
             network = plugin.get_network(admin_context, network_id)
             network_type = network.get('provider:network_type')
