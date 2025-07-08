@@ -122,6 +122,40 @@ class BmgwBridge(ovs_lib.OVSBridge):
         # to enable qinq on ovs port, we need to set the following options globally in Open_vSwitch table
         other_config = {'vlan-limit': '2'}
         self.ovsdb.db_set('Open_vSwitch', '.', ('other_config', other_config))
+        eventlet.spawn_after(60, self.clean_dead_bmports)
+
+    def clean_dead_bmports(self):
+        LOG.info("bmgw: run job clean_dead_bmports")
+        ports = self.get_port_name_list()
+
+        for port in ports:
+            if not port.startswith(constants.BM_PORT_PREFIX):
+                continue
+
+            # 获取当前 port 的接口属性字典
+            options = self.db_get_val('Interface', port, 'options')
+            if not options:
+                LOG.warning(f"bmgw, clean_dead_bmports, port {port} has no options, skip it")                
+                continue
+
+            peer_name = options.get('peer')
+            if not peer_name:
+                LOG.warning(f"bmgw, clean_dead_bmports, port {port} has no peer, skip it")
+                continue
+
+            # 获取 peer port 的 tag
+            tag = self.db_get_val('Port', peer_name, 'tag')
+            if tag == constants.OVS_DEAD_VLAN:
+                external_ids = self.db_get_val('Interface', port, 'external_ids')
+                port_id = external_ids.get('iface-id') if external_ids else None
+
+                if not port_id:
+                    LOG.warning(f"bmgw, clean_dead_bmports, port {port} has no port_id, skip it")
+                    continue
+
+                LOG.info(f"bmgw, clean_dead_bmports, port {port_id} is dead, delete it")
+                bmport = BmPort(port_id, to_bridge=None, mac=None, qinq_id=0, ovs_hybrid_plug=False)
+                bmport.unplug()
 
 
     def exists(self):
@@ -234,7 +268,7 @@ class BmPort():
                 else:
                     LOG.debug(f"bmgwdriver, bmport.unplug, port {self.qvo_name} is not connected to any bridge")
 
-                if peer_br_name and peer_br_name != 'br-int':
+                if peer_br_name and peer_br_name.startswith(constants.TRUNK_BR_PREFIX):
                     # delete trunk bridge
                     LOG.debug(f"bmgwdriver, bmport.unplug, spawn a job to delete trunk bridge {peer_br_name}")
                     eventlet.spawn_after(2, self.del_trunk_bridge, peer_br_name)
