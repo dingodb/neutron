@@ -65,7 +65,7 @@ def get_qbr_bridge_name(port_id):
 def gen_trunk_br_name(trunk_id):
     return ((constants.TRUNK_BR_PREFIX + trunk_id)[:constants.DEVICE_NAME_MAX_LEN])
 
-def get_port_attrs(port_id, port_mac=None, type=None, peer=None):
+def get_port_attrs(port_id, port_mac=None, type=None, peer=None, hybrid=False):
     external_ids = {}
     if port_mac:
         external_ids['attached-mac'] = str(port_mac)
@@ -78,6 +78,10 @@ def get_port_attrs(port_id, port_mac=None, type=None, peer=None):
     if peer:
         attrs.append(('options', {'peer': peer}))
     # attrs = [('type', ''), ('options', ''{'peer': peer_name}'')]
+    if hybrid:
+        attrs.append(('other_config', {'hybrid': 'true'}))
+    else:
+        attrs.append(('other_config', {'hybrid': 'false'}))
 
     if external_ids:
         attrs.append(
@@ -154,8 +158,11 @@ class BmgwBridge(ovs_lib.OVSBridge):
                     continue
 
                 LOG.info(f"bmgw, clean_dead_bmports, port {port_id} is dead, delete it")
-                bmport = BmPort(port_id, to_bridge=None, mac=None, qinq_id=0, ovs_hybrid_plug=False)
-                bmport.unplug()
+                try:
+                    bmport = BmPort(port_id, to_bridge=None, mac=None, qinq=0, ovs_hybrid_plug=False)
+                    bmport.unplug()
+                except Exception as e:
+                    LOG.error(f"bmgw, clean_dead_bmports, Failed to delete port {port_id}: {e}")
 
 
     def exists(self):
@@ -214,13 +221,13 @@ class BmPort():
             self.qbr_bridge.addif(self.qvb_name)
             self.qbr_bridge.addif(self.tap_name)
             utils.execute(['ip', 'link', 'set', self.qbr_bridge._name, 'up'], run_as_root=True)
-            port_int_attrs = get_port_attrs(self.port_id, self.mac)
+            port_int_attrs = get_port_attrs(self.port_id, self.mac, peer=self.tap_name, hybrid=True)
         else:
             # create_veth_pair(self.name, self.qvo_name)
             # for ovs_hybrid_plug = False (case of DPDK), we patch rather than veth pair
             # patch port can running in both user space and kernel space.
-            port_int_attrs = get_port_attrs(self.port_id, self.mac, constants.OVS_PATCH, self.name)
-            port_bm_attrs = get_port_attrs(self.port_id, self.mac, constants.OVS_PATCH, self.qvo_name)
+            port_int_attrs = get_port_attrs(self.port_id, self.mac, constants.OVS_PATCH, self.name, hybrid=False)
+            port_bm_attrs = get_port_attrs(self.port_id, self.mac, constants.OVS_PATCH, self.qvo_name, hybrid=False)
 
         ovsdb = self.bridge.ovsdb
         with ovsdb.transaction() as txn:
@@ -278,7 +285,7 @@ class BmPort():
                     #     trk_br.delete_ports(all_ports=True)
                     #     trk_br.destroy()
 
-        if self.ovs_hybrid_plug:
+        if self.get_hybrid_flag():
             if self.qbr_bridge.exists():
                 self.qbr_bridge.delif(self.qvb_name)
                 self.qbr_bridge.delif(self.tap_name)
@@ -298,6 +305,20 @@ class BmPort():
         br = TrunkBridge(br_name)
         if br.bridge_exists(br_name):
             br.destroy()
+    
+    def get_hybrid_flag(self):
+        """Get hybrid flag."""
+        other_config = self.bridge.db_get_val('Interface', self.name, 'other_config')
+        if not other_config:
+            LOG.warning(f"bmgwdriver, bmport.unplug, port {self.name} has no other_config")
+            return True
+
+        hybrid = other_config.get('hybrid')
+        if not hybrid:
+            LOG.warning(f"bmgwdriver, bmport.unplug, port {self.name} has no hybrid")
+            return True
+
+        return hybrid == 'true'
 
 class TrunkBridge(ovs_lib.OVSBridge):
     """A trunk bridge.
