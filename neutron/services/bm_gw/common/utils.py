@@ -246,7 +246,7 @@ class BmPort():
                                 ('other_config', {'qinq-ethtype':'802.1q'})))
 
         #self.ofport_id = self.bridge.get_port_ofport(self.name)
-        LOG.debug(f"Plugged bm port {self.name} to bridge {self.bridge.br_name}")
+        LOG.info(f"Plugged bm port {self.name} to bridge {self.bridge.br_name}")
 
     def unplug(self):
         """Unplug the bmport from bridge.
@@ -260,7 +260,13 @@ class BmPort():
         # CAN NOT use the self.to_bridge in unplug method, 
         # because it may be trunk bridge or br-int, 
         # we didn't init self.to_bridge weth correct value.
+        if not self.bridge.port_exists(self.name):
+            LOG.debug(f"bmgwdriver, bmport.unplug, port {self.name} does not exist, return")
+            return
 
+        hybrid = self.get_hybrid_flag()
+        LOG.info(f"bmgwdriver, bmport.unplug, port {self.name} hybrid flag is {hybrid}")
+        
         ovsdb = self.bridge.ovsdb
 
         with ovsdb.transaction() as txn:
@@ -285,7 +291,7 @@ class BmPort():
                     #     trk_br.delete_ports(all_ports=True)
                     #     trk_br.destroy()
 
-        if self.get_hybrid_flag():
+        if hybrid:
             if self.qbr_bridge.exists():
                 self.qbr_bridge.delif(self.qvb_name)
                 self.qbr_bridge.delif(self.tap_name)
@@ -293,10 +299,7 @@ class BmPort():
             delete_veth_pair(self.name, self.tap_name)
             delete_veth_pair(self.qvb_name, self.qvo_name)
 
-        # else:
-        #     delete_veth_pair(self.name, self.qvo_name)
-
-        LOG.debug("Unplugged bm port %s from bridge %s", self.name, self.bridge.br_name)
+        LOG.info("Unplugged bm port %s from bridge %s", self.name, self.bridge.br_name)
 
     def del_trunk_bridge(self, br_name):
         """Delete trunk bridge."""
@@ -308,14 +311,18 @@ class BmPort():
     
     def get_hybrid_flag(self):
         """Get hybrid flag."""
+        if not self.bridge.port_exists(self.name):
+            LOG.debug(f"bmgwdriver, bmport.get_hybrid_flag, port {self.name} does not exist")
+            return False
+
         other_config = self.bridge.db_get_val('Interface', self.name, 'other_config')
         if not other_config:
-            LOG.warning(f"bmgwdriver, bmport.unplug, port {self.name} has no other_config")
+            LOG.warning(f"bmgwdriver, bmport.get_hybrid_flag, port {self.name} has no other_config")
             return True
 
         hybrid = other_config.get('hybrid')
         if not hybrid:
-            LOG.warning(f"bmgwdriver, bmport.unplug, port {self.name} has no hybrid")
+            LOG.warning(f"bmgwdriver, bmport.get_hybrid_flag, port {self.name} has no hybrid")
             return True
 
         return hybrid == 'true'
