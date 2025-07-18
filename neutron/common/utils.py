@@ -198,6 +198,7 @@ def get_other_dvr_serviced_device_owners(host_dvr_for_dhcp=True):
     """
     device_owners = [n_const.DEVICE_OWNER_LOADBALANCER,
                      n_const.DEVICE_OWNER_LOADBALANCERV2,
+                     "baremetal:none", #zetyun, add for bm_gw baremetal port, mall@zetyun.com, 2025.7.18
                      trunk_constants.TRUNK_SUBPORT_OWNER]
     if host_dvr_for_dhcp:
         device_owners.append(n_const.DEVICE_OWNER_DHCP)
