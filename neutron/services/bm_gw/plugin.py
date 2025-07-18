@@ -86,6 +86,9 @@ class BmgwPlugin(service_base.ServicePluginBase):
         
         previous_state = payload.states[0]  # Original state before update
         current_state = payload.desired_state  # New state after update
+        if not current_state or current_state.get('agent_type') != constants.AGENT_TYPE_OVS:
+            LOG.debug(f"[bmgw plugin : _handle_agent_update] Skip non-OVS agent update. Host: {host}")
+            return
         
         admin_context = context.get_admin_context()
         plugin = directory.get_plugin()
@@ -101,9 +104,9 @@ class BmgwPlugin(service_base.ServicePluginBase):
             curr_bm_gw = current_state['configurations'].get('bm_gw')
             LOG.debug(f"[bmgw plugin : _handle_agent_update] Agent {host} current bm_gw is {curr_bm_gw}")
         
-        # if bm_gw change from True to False, reschedule bmgwport
-        if prev_bm_gw == True and curr_bm_gw == False:
-            LOG.info(f"[bmgw plugin : _handle_agent_update] Agent {host} bm_gw change from True to False, reschedule bmgwport.")
+        # if bm_gw is False, try to reschedule bmgwport
+        if curr_bm_gw.lower() == 'false':
+            LOG.debug(f"[bmgw plugin : _handle_agent_update] Agent {host} bm_gw is False, try to reschedule bmgwport.")
             self.reschedule_ports_on_agent(plugin, admin_context, host)
 
         # then check down agent
@@ -118,12 +121,12 @@ class BmgwPlugin(service_base.ServicePluginBase):
             self.reschedule_ports_on_agent(plugin, admin_context, agent['host'])
 
     def reschedule_ports_on_agent(self, plugin, admin_context, host):
-        LOG.info(f"[bmgw plugin : reschedule_ports_on_agent] bmgwAgent {host} is down, rechedule bmgwport in this host.")
+        LOG.debug(f"[bmgw plugin : reschedule_ports_on_agent] bmgwAgent {host} is down/disabled, try to reschedule bmgwport in this host.")
         ports_to_reschedule = plugin.get_ports_by_vnic_type_and_host(admin_context,
                                                                     vnic_type = portbindings.VNIC_BAREMETAL,
                                                                     host = host)
 
-        LOG.info(f"[bmgw plugin : reschedule_ports_on_agent] Found {len(ports_to_reschedule)} ports need to reschedule for down agent {host}")
+        LOG.debug(f"[bmgw plugin : reschedule_ports_on_agent] Found {len(ports_to_reschedule)} ports need to reschedule for down agent {host}")
 
         # Reschedule each port
         for port in ports_to_reschedule:
@@ -139,7 +142,7 @@ class BmgwPlugin(service_base.ServicePluginBase):
                     'binding:host_id': new_host
                 }
                 plugin.update_port(admin_context, port_id, {'port': port_binding})
-                LOG.info(f"[bmgw plugin : reschedule_ports_on_agent], Rescheduled port {port_id} to agent {new_host}")
+                LOG.info(f"[bmgw plugin : reschedule_ports_on_agent], Rescheduled bmport {port_id} from {host} to {new_host}")
             except Exception as e:
                 LOG.error(f"[bmgw plugin : reschedule_ports_on_agent], Failed to process port {port_id}: {e}")
 
