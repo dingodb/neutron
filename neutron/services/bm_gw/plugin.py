@@ -84,7 +84,7 @@ class BmgwPlugin(service_base.ServicePluginBase):
             LOG.warning("No host information in agent update event")
             return
         
-        previous_state = payload.states[0]  # Original state before update
+        previous_state = payload.states[1]  # Original state before update
         current_state = payload.desired_state  # New state after update
         if not current_state or current_state.get('agent_type') != constants.AGENT_TYPE_OVS:
             LOG.debug(f"[bmgw plugin : _handle_agent_update] Skip non-OVS agent update. Host: {host}")
@@ -105,8 +105,8 @@ class BmgwPlugin(service_base.ServicePluginBase):
             LOG.debug(f"[bmgw plugin : _handle_agent_update] Agent {host} current bm_gw is {curr_bm_gw}")
         
         # if bm_gw is False, try to reschedule bmgwport
-        if curr_bm_gw.lower() == 'false':
-            LOG.debug(f"[bmgw plugin : _handle_agent_update] Agent {host} bm_gw is False, try to reschedule bmgwport.")
+        if str(prev_bm_gw).lower() == 'true' and str(curr_bm_gw).lower() == 'false':
+            LOG.debug(f"[bmgw plugin : _handle_agent_update] Agent {host} bm_gw changed from True to False, try to reschedule bmgwport.")
             self.reschedule_ports_on_agent(plugin, admin_context, host)
 
         # then check down agent
