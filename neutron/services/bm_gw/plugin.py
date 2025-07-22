@@ -133,7 +133,7 @@ class BmgwPlugin(service_base.ServicePluginBase):
             port_id = port['id']
             try:
                 # Schedule port to a new agent
-                new_host = self.schedule_port_to_bmgw(admin_context, port)
+                new_host = self.schedule_port_to_bmgw(admin_context, port, host)
                 if not new_host:
                     LOG.error(f"Failed to reschedule port {port_id}")
                     continue
@@ -206,9 +206,13 @@ class BmgwPlugin(service_base.ServicePluginBase):
             
             LOG.info(f"BmgwPlugin,_handle_port_update, Processing baremetal port update for port {port_id}")
             # Schedule port to a BMGW agent
-            host = self.schedule_port_to_bmgw(admin_context, port)
+            host = self.schedule_port_to_bmgw(admin_context, port, bmhostid)
             if not host:
                 LOG.error(f"Failed to schedule port {port_id} to any BMGW agent")
+                return
+
+            if host == bmhostid:
+                LOG.debug(f"BmgwPlugin,_handle_port_update: port {port_id} scheduled to pre attached host {bmhostid}, return.")
                 return
 
             LOG.info(f"BmgwPlugin,_handle_port_update, port {port_id} scheduled to BMGW agent {host}")
@@ -279,7 +283,7 @@ class BmgwPlugin(service_base.ServicePluginBase):
 
         return agents
 
-    def schedule_port_to_bmgw(self, context, port):
+    def schedule_port_to_bmgw(self, context, port, pre_host):
         """Schedule a port to a bare metal gateway agent.
 
         This method uses random selection to choose a suitable BMGW agent.
@@ -287,6 +291,7 @@ class BmgwPlugin(service_base.ServicePluginBase):
 
         :param context: request context
         :param port: The port dict to schedule
+        :param pre_host: The pre host of the port
         :returns: Tuple of 'host' of the selected agent or 
                 'None' if no suitable agent found
         """
@@ -297,20 +302,20 @@ class BmgwPlugin(service_base.ServicePluginBase):
 
         profile = port.get('binding:profile')
         if not profile:
-            LOG.debug(f"BmgwPlugin,_handle_port_update: port {port_id} profile is None, return.")
+            LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw: port {port_id} profile is None, return.")
             return None
         
         if profile.get('local_link_information') is None:
-            LOG.debug(f"BmgwPlugin,_handle_port_update: port {port_id} local_link_information is None, return.")
+            LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw: port {port_id} local_link_information is None, return.")
             return None
         
         if profile.get('local_link_information')[0].get('switch_info') is None:
-            LOG.debug(f"BmgwPlugin,_handle_port_update: port {port_id} switch_info is None, return.")
+            LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw: port {port_id} switch_info is None, return.")
             return None
 
         port_qinq_vlan_id = int(profile.get('local_link_information')[0].get('switch_info'))
         if not port_qinq_vlan_id or port_qinq_vlan_id < 0 or port_qinq_vlan_id > 4094:
-            LOG.debug(f"BmgwPlugin,_handle_port_update: port {port_id} qinq_vlan_id is invalid, return.")
+            LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw: port {port_id} qinq_vlan_id is invalid, return.")
             return None
 
         # Get all active and alive BMGW agents
@@ -318,6 +323,10 @@ class BmgwPlugin(service_base.ServicePluginBase):
         if not agents:
             LOG.error(f"No available BMGW agents found for port {port_id}")
             return None
+
+        if pre_host in [agent['host'] for agent in agents]:
+            LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw, port {port_id} already schedule to {pre_host}, return.")
+            return pre_host
 
         # check port --tags to select agent host
         # read the --tags value 'bm_gw_host=<host>'
