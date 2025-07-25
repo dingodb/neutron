@@ -132,37 +132,39 @@ class BmgwBridge(ovs_lib.OVSBridge):
         LOG.info("bmgw: run job clean_dead_bmports")
         ports = self.get_port_name_list()
 
-        for port in ports:
-            if not port.startswith(constants.BM_PORT_PREFIX):
+        for bmp_name in ports:
+            # here: port is port_name
+            if not bmp_name.startswith(constants.BM_PORT_PREFIX):
                 continue
 
-            # 获取当前 port 的接口属性字典
-            options = self.db_get_val('Interface', port, 'options')
-            if not options:
-                LOG.warning(f"bmgw, clean_dead_bmports, port {port} has no options, skip it")                
-                continue
+            # # 获取当前 port 的接口属性字典
+            # options = self.db_get_val('Interface', port, 'options')
+            # if not options:
+            #     LOG.warning(f"bmgw, clean_dead_bmports, port {port} has no options, skip it")                
+            #     continue
 
-            peer_name = options.get('peer')
-            if not peer_name:
-                LOG.warning(f"bmgw, clean_dead_bmports, port {port} has no peer, skip it")
-                continue
+            # peer_name = options.get('peer')
+            # if not peer_name:
+            #     LOG.warning(f"bmgw, clean_dead_bmports, port {port} has no peer, skip it")
+            #     continue
+            qvo_name = constants.QVO_PORT_PREFIX + bmp_name[3:]
 
             # 获取 peer port 的 tag
-            tag = self.db_get_val('Port', peer_name, 'tag')
+            tag = self.db_get_val('Port', qvo_name, 'tag')
             if tag == constants.OVS_DEAD_VLAN:
-                external_ids = self.db_get_val('Interface', port, 'external_ids')
+                external_ids = self.db_get_val('Interface', bmp_name, 'external_ids')
                 port_id = external_ids.get('iface-id') if external_ids else None
 
                 if not port_id:
-                    LOG.warning(f"bmgw, clean_dead_bmports, port {port} has no port_id, skip it")
+                    LOG.warning(f"bmgw, clean_dead_bmports, port {bmp_name} has no port_id, skip it")
                     continue
 
-                LOG.info(f"bmgw, clean_dead_bmports, port {port_id} is dead, delete it")
+                LOG.info(f"bmgw, clean_dead_bmports, port {bmp_name} is dead, delete it")
                 try:
                     bmport = BmPort(port_id, to_bridge=None, mac=None, qinq=0, ovs_hybrid_plug=False)
                     bmport.unplug()
                 except Exception as e:
-                    LOG.error(f"bmgw, clean_dead_bmports, Failed to delete port {port_id}: {e}")
+                    LOG.error(f"bmgw, clean_dead_bmports, Failed to delete port {bmp_name}: {e}")
 
 
     def exists(self):
@@ -211,8 +213,8 @@ class BmPort():
         # take over the wiring process and everything that entails.
         # REVISIT(rossella_s): revisit this integration part, should tighter
         # control over the wiring logic for bm ports be required.
-        port_int_attrs = None
-        port_bm_attrs = None
+        port_qvo_attrs = None
+        port_bmp_attrs = None
 
         if self.ovs_hybrid_plug:
             create_veth_pair(self.name, self.tap_name)
@@ -221,25 +223,26 @@ class BmPort():
             self.qbr_bridge.addif(self.qvb_name)
             self.qbr_bridge.addif(self.tap_name)
             utils.execute(['ip', 'link', 'set', self.qbr_bridge._name, 'up'], run_as_root=True)
-            port_int_attrs = get_port_attrs(self.port_id, self.mac, peer=self.tap_name, hybrid=True)
+            port_qvo_attrs = get_port_attrs(self.port_id, self.mac, peer=self.qvb_name, hybrid=True)
+            port_bmp_attrs = get_port_attrs(self.port_id, self.mac, peer=self.tap_name, hybrid=True)
         else:
             # create_veth_pair(self.name, self.qvo_name)
             # for ovs_hybrid_plug = False (case of DPDK), we patch rather than veth pair
             # patch port can running in both user space and kernel space.
-            port_int_attrs = get_port_attrs(self.port_id, self.mac, constants.OVS_PATCH, self.name, hybrid=False)
-            port_bm_attrs = get_port_attrs(self.port_id, self.mac, constants.OVS_PATCH, self.qvo_name, hybrid=False)
+            port_qvo_attrs = get_port_attrs(self.port_id, self.mac, constants.OVS_PATCH, self.name, hybrid=False)
+            port_bmp_attrs = get_port_attrs(self.port_id, self.mac, constants.OVS_PATCH, self.qvo_name, hybrid=False)
 
         ovsdb = self.bridge.ovsdb
         with ovsdb.transaction() as txn:
             txn.add(ovsdb.add_port(self.to_bridge.br_name,
                                 self.qvo_name))
             txn.add(ovsdb.db_set('Interface', self.qvo_name,
-                                *port_int_attrs))
+                                *port_qvo_attrs))
             txn.add(ovsdb.add_port(self.bridge.br_name,
                                 self.name))
             if not self.ovs_hybrid_plug:
                 txn.add(ovsdb.db_set('Interface', self.name,
-                                *port_bm_attrs))
+                                *port_bmp_attrs))
             txn.add(ovsdb.db_set('Port', self.name,
                                 ('vlan_mode', 'dot1q-tunnel'),
                                 ('tag', self.qinq),
