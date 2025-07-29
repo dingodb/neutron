@@ -148,10 +148,14 @@ class BmgwBridge(ovs_lib.OVSBridge):
             #     LOG.warning(f"bmgw, clean_dead_bmports, port {port} has no peer, skip it")
             #     continue
             qvo_name = constants.QVO_PORT_PREFIX + bmp_name[3:]
+            # maybe bmp connect to tbr, trunk port
+            tpi_name = constants.TRUNK_PORT_INT_PREFIX + bmp_name[4:]
 
-            # 获取 peer port 的 tag
+            # 获取 br-int 上对应 port 的 tag
             tag = self.db_get_val('Port', qvo_name, 'tag')
-            if tag == constants.OVS_DEAD_VLAN:
+            tag2 = self.db_get_val('Port', tpi_name, 'tag')
+
+            if tag == constants.OVS_DEAD_VLAN or tag2 == constants.OVS_DEAD_VLAN:
                 external_ids = self.db_get_val('Interface', bmp_name, 'external_ids')
                 port_id = external_ids.get('iface-id') if external_ids else None
 
