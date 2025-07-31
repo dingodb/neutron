@@ -126,6 +126,10 @@ class BmgwBridge(ovs_lib.OVSBridge):
         # to enable qinq on ovs port, we need to set the following options globally in Open_vSwitch table
         other_config = {'vlan-limit': '2'}
         self.ovsdb.db_set('Open_vSwitch', '.', ('other_config', other_config))
+        #eventlet.spawn_after(60, self.clean_dead_bmports)
+    
+    def spawn_clean_dead_bmports(self):
+        LOG.info("bmgw: spawn job clean_dead_bmports")
         eventlet.spawn_after(60, self.clean_dead_bmports)
 
     def clean_dead_bmports(self):
