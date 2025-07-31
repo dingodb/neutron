@@ -43,6 +43,7 @@ class BmGwDriver(object):
         # and should added the physical NIC (for baremetals access) to it.
         LOG.debug(f"BmGwDriver, init, bm_gw_brname={cfg.CONF.AGENT.bm_gw_brname}")
         self.br_bmgw = utils.BmgwBridge(cfg.CONF.AGENT.bm_gw_brname)
+        self.br_bmgw.spawn_clean_dead_bmports()
         #self.br_bmgw.create(secure_mode=True)
         #self.nic_ofport = self.br_bmgw.add_port(cfg.CONF.AGENT.bm_gw_nic)
         #self.br_bmgw.set_nic_ofport_id(self.nic_ofport)
