@@ -439,7 +439,7 @@ def teardown(db_sock, interface, mirror_interface, tap_created):
 def main():
     rundir = os.environ.get('OVS_RUNDIR', '@RUNDIR@')
     #mall@zetyun.com
-    rundir = /var/run/openvswitch
+    rundir = '/var/run/openvswitch'
     db_sock = 'unix:%s' % os.path.join(rundir, "db.sock")
     interface = None
     tcpdargs = []
