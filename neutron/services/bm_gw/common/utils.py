@@ -169,7 +169,7 @@ class BmgwBridge(ovs_lib.OVSBridge):
 
                 LOG.info(f"bmgw, clean_dead_bmports, port {bmp_name} is dead, delete it")
                 try:
-                    bmport = BmPort(port_id, to_bridge=None, mac=None, qinq=0, ovs_hybrid_plug=False)
+                    bmport = BmPort(port_id, to_bridge=None, mac=None, qinq=0, ovs_hybrid_plug=True)
                     bmport.unplug()
                 except Exception as e:
                     LOG.error(f"bmgw, clean_dead_bmports, Failed to delete port {bmp_name}: {e}")
@@ -197,9 +197,7 @@ class BmPort():
         # to_bridge can be trunk bridge (tbr-XXX) or br-int
         self.to_bridge = to_bridge
 
-        self.qbr_bridge = None
-        if self.ovs_hybrid_plug:
-            self.qbr_bridge = linux_bridge.BridgeDevice(get_qbr_bridge_name(port_id))
+        self.qbr_bridge = linux_bridge.BridgeDevice(get_qbr_bridge_name(port_id))
         #self.ofport_id = self.bridge.get_port_ofport(self.name)
         LOG.debug(f"Init bm port Object {self.name}")
 
