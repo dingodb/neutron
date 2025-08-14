@@ -248,8 +248,7 @@ class BmPort():
                                 *port_qvo_attrs))
             txn.add(ovsdb.add_port(self.bridge.br_name,
                                 self.name))
-            if not self.ovs_hybrid_plug:
-                txn.add(ovsdb.db_set('Interface', self.name,
+            txn.add(ovsdb.db_set('Interface', self.name,
                                 *port_bmp_attrs))
             txn.add(ovsdb.db_set('Port', self.name,
                                 ('vlan_mode', 'dot1q-tunnel'),
