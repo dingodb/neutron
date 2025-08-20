@@ -337,10 +337,11 @@ class BmgwPlugin(service_base.ServicePluginBase):
             bm_gw_host = tags[0].split('=')[1]
             LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw,port {port_id} --tags[bm_gw_host={bm_gw_host}]")
             if bm_gw_host:
-                agents = [agent for agent in agents if agent['host'] == bm_gw_host]
-                if not agents:
+                agents_tag = [agent for agent in agents if agent['host'] == bm_gw_host]
+                if not agents_tag:
                     LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw, No available BMGW agents found for port {port_id} in --tags[bm_gw_host={bm_gw_host}], use random choice.")
                 else:
+                    agents = agents_tag
                     LOG.debug(f"BmgwPlugin,schedule_port_to_bmgw, Read configuration from port {port_id} in --tags[bm_gw_host={bm_gw_host}]")
 
         # Randomly select an agent for simple load balancing
