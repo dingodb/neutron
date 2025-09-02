@@ -99,16 +99,16 @@ def create_veth_pair(if1, if2, f1mac = None, f2mac = None):
 
         utils.execute(['ip', 'link', 'set', if1, 'up'], run_as_root=True)
         utils.execute(['ip', 'link', 'set', if2, 'up'], run_as_root=True)
-        LOG.debug(f"Created veth pair {if1} <-> {if2}")
+        LOG.debug(f"bmgw driver utils, Created veth pair {if1} <-> {if2}")
 
 def delete_veth_pair(if1, if2):
     """Delete a veth pair if exists."""
     if ip_lib.device_exists(if1):
         utils.execute(['ip', 'link', 'del', if1], run_as_root=True)
-        LOG.debug(f"Deleted veth pair {if1} <-> {if2}")
+        LOG.debug(f"bmgw driver utils, Deleted veth pair {if1} <-> {if2}")
     elif ip_lib.device_exists(if2):
         utils.execute(['ip', 'link', 'del', if2], run_as_root=True)
-        LOG.debug(f"Deleted veth pair {if2} <-> {if1}")
+        LOG.debug(f"bmgw driver utils, Deleted veth pair {if2} <-> {if1}")
 
 
 class BmgwBridge(ovs_lib.OVSBridge):
@@ -129,11 +129,11 @@ class BmgwBridge(ovs_lib.OVSBridge):
         #eventlet.spawn_after(60, self.clean_dead_bmports)
     
     def spawn_clean_dead_bmports(self):
-        LOG.info("bmgw: spawn job clean_dead_bmports")
+        LOG.info("bmgw driver utils, spawn job clean_dead_bmports")
         eventlet.spawn_after(60, self.clean_dead_bmports)
 
     def clean_dead_bmports(self):
-        LOG.info("bmgw: run job clean_dead_bmports")
+        LOG.info("bmgw driver utils, run job clean_dead_bmports")
         ports = self.get_port_name_list()
 
         for bmp_name in ports:
@@ -163,20 +163,20 @@ class BmgwBridge(ovs_lib.OVSBridge):
             if self.port_exists(tpi_name):
                 tag2 = self.db_get_val('Port', tpi_name, 'tag')
 
-            if tag == constants.OVS_DEAD_VLAN or tag2 == constants.OVS_DEAD_VLAN:
+            if (tag is not None and tag == constants.OVS_DEAD_VLAN) or (tag2 is not None and tag2 == constants.OVS_DEAD_VLAN):
                 external_ids = self.db_get_val('Interface', bmp_name, 'external_ids')
                 port_id = external_ids.get('iface-id') if external_ids else None
 
                 if not port_id:
-                    LOG.warning(f"bmgw, clean_dead_bmports, port {bmp_name} has no port_id, skip it")
+                    LOG.warning(f"bmgw driver utils, clean_dead_bmports, port {bmp_name} has no port_id, skip it")
                     continue
 
-                LOG.info(f"bmgw, clean_dead_bmports, port {bmp_name} is dead, delete it")
+                LOG.info(f"bmgw driver utils, clean_dead_bmports, port {bmp_name} is dead, delete it")
                 try:
                     bmport = BmPort(port_id, to_bridge=None, mac=None, qinq=0, ovs_hybrid_plug=True)
                     bmport.unplug()
                 except Exception as e:
-                    LOG.error(f"bmgw, clean_dead_bmports, Failed to delete port {bmp_name}: {e}")
+                    LOG.error(f"bmgw driver utils, clean_dead_bmports, Failed to delete port {bmp_name}: {e}")
 
 
     def exists(self):
@@ -203,7 +203,7 @@ class BmPort():
 
         self.qbr_bridge = linux_bridge.BridgeDevice(get_qbr_bridge_name(port_id))
         #self.ofport_id = self.bridge.get_port_ofport(self.name)
-        LOG.debug(f"Init bm port Object {self.name}")
+        LOG.debug(f"bmgw driver utils, Init bm port Object {self.name}")
 
     def plug(self):
         ""
@@ -258,7 +258,7 @@ class BmPort():
                                 ('other_config', {'qinq-ethtype':'802.1q'})))
 
         #self.ofport_id = self.bridge.get_port_ofport(self.name)
-        LOG.info(f"Plugged bm port {self.name} to bridge {self.bridge.br_name}")
+        LOG.info(f"bmgw driver utils, Plugged bm port {self.name} to bridge {self.bridge.br_name}")
 
     def unplug(self):
         """Unplug the bmport from bridge.
@@ -273,11 +273,11 @@ class BmPort():
         # because it may be trunk bridge or br-int, 
         # we didn't init self.to_bridge weth correct value.
         if not self.bridge.port_exists(self.name):
-            LOG.debug(f"bmgwdriver, bmport.unplug, port {self.name} does not exist, return")
+            LOG.debug(f"bmgw driver utils, bmport.unplug, port {self.name} does not exist, return")
             return
 
         hybrid = self.get_hybrid_flag()
-        LOG.info(f"bmgwdriver, bmport.unplug, port {self.name} hybrid flag is {hybrid}")
+        LOG.info(f"bmgw driver utils, bmport.unplug, port {self.name} hybrid flag is {hybrid}")
         
         ovsdb = self.bridge.ovsdb
 
@@ -289,13 +289,13 @@ class BmPort():
             if self.bridge.port_exists(self.qvo_name):
                 peer_br_name = self.bridge.get_bridge_for_iface(self.qvo_name)
                 if peer_br_name:
-                    LOG.debug(f"bmgwdriver, bmport.unplug, port {self.qvo_name} is connected to bridge {peer_br_name}")
+                    LOG.debug(f"bmgw driver utils, bmport.unplug, port {self.qvo_name} is connected to bridge {peer_br_name}")
                 else:
-                    LOG.debug(f"bmgwdriver, bmport.unplug, port {self.qvo_name} is not connected to any bridge")
+                    LOG.debug(f"bmgw driver utils, bmport.unplug, port {self.qvo_name} is not connected to any bridge")
 
                 if peer_br_name and peer_br_name.startswith(constants.TRUNK_BR_PREFIX):
                     # delete trunk bridge
-                    LOG.debug(f"bmgwdriver, bmport.unplug, spawn a job to delete trunk bridge {peer_br_name}")
+                    LOG.debug(f"bmgw driver utils, bmport.unplug, spawn a job to delete trunk bridge {peer_br_name}")
                     eventlet.spawn_after(2, self.del_trunk_bridge, peer_br_name)
                     # trk_br = TrunkBridge(peer_br_name)
                     # if trk_br.bridge_exists(peer_br_name):
@@ -311,11 +311,11 @@ class BmPort():
             delete_veth_pair(self.name, self.tap_name)
             delete_veth_pair(self.qvb_name, self.qvo_name)
 
-        LOG.info("Unplugged bm port %s from bridge %s", self.name, self.bridge.br_name)
+        LOG.info(f"bmgw driver utils, bmport.unplug, Unplugged bm port {self.name} from bridge {self.bridge.br_name}")
 
     def del_trunk_bridge(self, br_name):
         """Delete trunk bridge."""
-        LOG.debug(f"bmgwdriver, bmport.del_trunk_bridge, delete trunk bridge {br_name}")
+        LOG.debug(f"bmgw driver utils, bmport.del_trunk_bridge, delete trunk bridge {br_name}")
 
         br = TrunkBridge(br_name)
         if br.bridge_exists(br_name):
@@ -324,17 +324,17 @@ class BmPort():
     def get_hybrid_flag(self):
         """Get hybrid flag."""
         if not self.bridge.port_exists(self.name):
-            LOG.debug(f"bmgwdriver, bmport.get_hybrid_flag, port {self.name} does not exist")
+            LOG.debug(f"bmgw driver utils, bmport.get_hybrid_flag, port {self.name} does not exist")
             return False
 
         other_config = self.bridge.db_get_val('Interface', self.name, 'other_config')
         if not other_config:
-            LOG.warning(f"bmgwdriver, bmport.get_hybrid_flag, port {self.name} has no other_config")
+            LOG.warning(f"bmgw driver utils, bmport.get_hybrid_flag, port {self.name} has no other_config")
             return True
 
         hybrid = other_config.get('hybrid')
         if not hybrid:
-            LOG.warning(f"bmgwdriver, bmport.get_hybrid_flag, port {self.name} has no hybrid")
+            LOG.warning(f"bmgw driver utils, bmport.get_hybrid_flag, port {self.name} has no hybrid")
             return True
 
         return hybrid == 'true'
@@ -353,4 +353,4 @@ class TrunkBridge(ovs_lib.OVSBridge):
     def verify(self):
         if not self.bridge_exists(self.br_name):
             self.create()
-            LOG.debug(f"bmgwdriver Created trunk bridge {self.br_name}")
+            LOG.debug(f"bmgw driver utils, TrunkBridge.verify, Created trunk bridge {self.br_name}")
