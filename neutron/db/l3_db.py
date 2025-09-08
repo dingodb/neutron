@@ -19,6 +19,7 @@ import secrets
 import netaddr
 from neutron_lib.api.definitions import l3 as l3_apidef
 from neutron_lib.api.definitions import qos_fip as qos_fip_apidef
+from neutron_lib.api.definitions import portbindings as pb
 from neutron_lib.api import extensions
 from neutron_lib.api import validators
 from neutron_lib.callbacks import events
