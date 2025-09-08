@@ -601,7 +601,8 @@ def _notify_l3_agent_port_update(resource, event, trigger, payload):
         dest_host = None
         new_port_profile = new_port.get(portbindings.PROFILE)
         if new_port_profile:
-            dest_host = new_port_profile.get('migrating_to')
+            #zetyun, add new_port_host for bm_gw baremetal port no migrating info, mall@zetyun.com, 2025.7.18
+            dest_host = new_port_profile.get('migrating_to') or new_port_host
         if is_new_port_binding_changed or is_bound_port_moved or dest_host:
             fips = l3plugin._get_floatingips_by_port_id(
                 context, port_id=original_port['id'])

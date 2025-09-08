@@ -186,7 +186,8 @@ def get_other_dvr_serviced_device_owners(host_dvr_for_dhcp=True):
     prefix, not a complete device_owner name, so should be handled
     separately (see is_dvr_serviced() below)
     """
-    device_owners = [trunk_constants.TRUNK_SUBPORT_OWNER]
+    device_owners = ["baremetal:none", #zetyun, add for bm_gw baremetal port, mall@zetyun.com, 2025.7.18
+                     trunk_constants.TRUNK_SUBPORT_OWNER]
     if host_dvr_for_dhcp:
         device_owners.append(n_const.DEVICE_OWNER_DHCP)
     return device_owners
