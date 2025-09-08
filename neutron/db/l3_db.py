@@ -1387,8 +1387,10 @@ class L3_NAT_dbonly_mixin(l3.RouterPluginBase,
             internal_subnet_id, floatingip_obj.floating_network_id)
 
         if self.is_router_distributed(context, router_id):
-            if not plugin_utils.can_port_be_bound_to_virtual_bridge(
-                    internal_port):
+            # mall@zetyun.com, 2025-06-23
+            # bmgw feature, add baremetal support in DVR mode
+            if internal_port[pb.VNIC_TYPE] != pb.VNIC_BAREMETAL and \
+               not plugin_utils.can_port_be_bound_to_virtual_bridge(internal_port):
                 msg = _('Port VNIC type is not valid to associate a FIP in '
                         'DVR mode')
                 raise n_exc.BadRequest(resource='floatingip', msg=msg)

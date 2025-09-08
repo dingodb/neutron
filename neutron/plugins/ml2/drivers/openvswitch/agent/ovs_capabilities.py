@@ -14,16 +14,19 @@
 from neutron_lib import constants
 
 from neutron.plugins.ml2.drivers.agent import capabilities
-from neutron.services.trunk.drivers.openvswitch.agent import driver
-
+# mall@zetyun.com, 2025.5.20, add bmgw driver
+from neutron.services.trunk.drivers.openvswitch.agent import driver as trunkdriver
+from neutron.services.bm_gw.drivers.openvswitch.agent import bmgwdriver
 
 def register():
     """Register OVS capabilities."""
     # Add capabilities to be loaded during agent initialization
-    capabilities.register(driver.init_handler, constants.AGENT_TYPE_OVS)
+    capabilities.register(trunkdriver.init_handler, constants.AGENT_TYPE_OVS)
+    capabilities.register(bmgwdriver.bmgwinit_handler, constants.AGENT_TYPE_OVS)
 
 
 def unregister():
     """Unregister OVS capabilities."""
     # To cleanup oslo.messaging queues
-    driver.unregister()
+    trunkdriver.unregister()
+    bmgwdriver.unregister()

@@ -67,6 +67,7 @@ class OpenvswitchMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
                                 portbindings.VNIC_DIRECT,
                                 portbindings.VNIC_SMARTNIC,
                                 portbindings.VNIC_VHOST_VDPA,
+                                portbindings.VNIC_BAREMETAL, # mall@zetyun.com, 2025.04.22
                                 ]
         prohibit_list = cfg.CONF.OVS_DRIVER.vnic_type_prohibit_list
         super().__init__(

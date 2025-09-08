@@ -204,6 +204,14 @@ agent_opts = [
     cfg.BoolOpt('l2_population', default=False,
                 help=_("Use ML2 l2population mechanism driver to learn "
                        "remote MAC and IPs and improve tunnel scalability.")),
+    # mall@zetyun.com, 2025.04.22      
+    cfg.BoolOpt('bm_gw', default=False,
+                help=_("Flag for enable bare metal gateway.")),
+    cfg.StrOpt('bm_gw_brname', default='br_bmgw',
+                help=_("Set the name of bmgw bridge(default br_bmgw).")),
+    #vlan range format: 100:200,300,400:500
+    cfg.StrOpt('bm_gw_vlan_range', default='1:4094',
+                help=_("Set the vlan range of bmgw bridge for baremetal access(default 1:4094).")),
     cfg.BoolOpt('arp_responder', default=False,
                 help=_("Enable local ARP responder if it is supported. "
                        "Requires OVS 2.1 and ML2 l2population driver. "

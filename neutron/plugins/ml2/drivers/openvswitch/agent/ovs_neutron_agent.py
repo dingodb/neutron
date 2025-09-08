@@ -356,6 +356,13 @@ class OVSNeutronAgent(l2population_rpc.L2populationRpcCallBackTunnelMixin,
         self.prevent_arp_spoofing = (
             not self.sg_agent.firewall.provides_arp_spoofing_protection)
 
+        # mall@zetyun.com, 2025.04.22
+        # Get bare metal gateway configuration
+        self.enable_bm_gw = agent_conf.bm_gw or False
+        self.bm_gw_brname = agent_conf.bm_gw_brname
+        # vlan range conf default=1:4094
+        self.bm_gw_vlan_range = agent_conf.bm_gw_vlan_range
+
         self.ovs_status = None
         self.failed_report_state = False
         # TODO(mangelajo): optimize resource_versions to only report
@@ -395,7 +402,10 @@ class OVSNeutronAgent(l2population_rpc.L2populationRpcCallBackTunnelMixin,
                                ovs_conf.vhostuser_socket_dir,
                                portbindings.OVS_HYBRID_PLUG: hybrid_plug,
                                'baremetal_smartnic':
-                               self.conf.AGENT.baremetal_smartnic},
+                               self.conf.AGENT.baremetal_smartnic,
+                               'bm_gw': self.enable_bm_gw,
+                               'bm_gw_brname': self.bm_gw_brname,
+                               'bm_gw_vlan_range': self.bm_gw_vlan_range}, # mall@zetyun.com, 2025.04.22
             'resource_versions': resources.LOCAL_RESOURCE_VERSIONS,
             'agent_type': n_const.AGENT_TYPE_OVS,
             'start_flag': True}
