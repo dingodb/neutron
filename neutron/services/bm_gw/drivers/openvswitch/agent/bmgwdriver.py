@@ -177,5 +177,5 @@ def parse_port(port):
     
     LOG.debug(f"bmgw driver, parse_port, host={host}, vnic_type={vnic_type}, vif_type={vif_type}, " \
               f"mac:={mac}, qinq_id={qinq_id}, bridge_name={bridge_name}, ovs_hybrid_plug={ovs_hybrid_plug}, " \
-              f"datapath_type={datapath_type}", device_owner={device_owner})
+              f"datapath_type={datapath_type}, device_owner={device_owner}")
     return host, vnic_type, vif_type, mac, int(qinq_id), str(bridge_name), bool(ovs_hybrid_plug), str(datapath_type), device_owner
