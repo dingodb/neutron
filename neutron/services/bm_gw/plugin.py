@@ -34,6 +34,7 @@ from oslo_messaging import RPCClient
 from neutron_lib.services import base as service_base
 from neutron.services.tag import tag_plugin
 from neutron.services.bm_gw.rpc import server as rpc_server
+from neutron.services.bm_gw.common import constants as bm_gw_constants
 
 LOG = logging.getLogger(__name__)
 
@@ -128,6 +129,11 @@ class BmgwPlugin(service_base.ServicePluginBase):
         for port in ports_to_reschedule:
             port_id = port['id']
             try:
+                device_owner = port.get('device_owner') if isinstance(port, dict) else getattr(port, 'device_owner', None)
+                if device_owner == bm_gw_constants.TRUNK_SUBPORT_OWNER:
+                    # trunk subport should be handled by trunk service. bmgw just ingore it.
+                    LOG.info(f"[bmgw plugin : reschedule_ports_on_agent] ignore trunk subport {port_id}")
+                    continue
                 # Schedule port to a new agent
                 new_host = self.schedule_port_to_bmgw(admin_context, port, host)
                 if not new_host:

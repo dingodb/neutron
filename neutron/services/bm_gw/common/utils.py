@@ -296,7 +296,7 @@ class BmPort():
                 if peer_br_name and peer_br_name.startswith(constants.TRUNK_BR_PREFIX):
                     # delete trunk bridge
                     LOG.debug(f"bmgw driver utils, bmport.unplug, spawn a job to delete trunk bridge {peer_br_name}")
-                    eventlet.spawn_after(2, self.del_trunk_bridge, peer_br_name)
+                    eventlet.spawn_after(4, self.del_trunk_bridge, peer_br_name)
                     # trk_br = TrunkBridge(peer_br_name)
                     # if trk_br.bridge_exists(peer_br_name):
                     #     LOG.debug(f"bmgwdriver, bmport.unplug, delete trunk bridge {peer_br_name}")
