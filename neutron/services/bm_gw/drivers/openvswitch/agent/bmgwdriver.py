@@ -57,15 +57,19 @@ class BmGwDriver(object):
         port_id = port['id']
 
         try:
-            host, vnic_type, vif_type, mac, qinq_id, bridge_name, ovs_hybrid_plug, datapath_type = parse_port(port)
+            host, vnic_type, vif_type, mac, qinq_id, bridge_name, ovs_hybrid_plug, datapath_type, device_owner = parse_port(port)
             to_bridge = self.ovs_agent.int_br
+
+            if device_owner == constants.TRUNK_SUBPORT_OWNER:
+                LOG.info(f"bmgw driver, process_port, ignore trunk subport {port_id} event_type={event_type}")
+                return
 
             if vnic_type == portbindings.VNIC_BAREMETAL or event_type == rpc_events.DELETED:
                 if self.host == host and (vif_type == portbindings.VIF_TYPE_OVS or vif_type == portbindings.VIF_TYPE_VHOST_USER):
                     if not cfg.CONF.AGENT.bm_gw:
                         LOG.error(f"bmgw driver, process_port, bm_gw is not enabled, can not scheduler bmport({port_id}) on this host")
                         return
-                    LOG.info(f"bmgw driver, process_port, plug bmport {port_id}, event_type={event_type}")
+
                     if not bridge_name:
                         LOG.error(f"bmgw driver, process_port, failed to plug bmport {port_id} for bridge_name is empty")
                         return
@@ -78,6 +82,7 @@ class BmGwDriver(object):
                         LOG.error(f"bmgw driver, process_port, failed to plug bmport {port_id} for qinq_id({qinq_id}) is invalid")
                         return
 
+                    LOG.info(f"bmgw driver, process_port, plug bmport {port_id}, event_type={event_type}")
                     bmport = utils.BmPort(port_id, to_bridge, mac, qinq_id, ovs_hybrid_plug)
                     bmport.plug()
                 else:
@@ -139,6 +144,9 @@ def parse_port(port):
     mac = None
     if 'mac_address' in port.fields and port.obj_attr_is_set('mac_address'):
         mac = str(port.mac_address)
+    device_owner = None
+    if 'device_owner' in port.fields and port.obj_attr_is_set('device_owner'):
+        device_owner = str(port.device_owner)
     host = None
     vif_type = None
     vnic_type = None
@@ -169,5 +177,5 @@ def parse_port(port):
     
     LOG.debug(f"bmgw driver, parse_port, host={host}, vnic_type={vnic_type}, vif_type={vif_type}, " \
               f"mac:={mac}, qinq_id={qinq_id}, bridge_name={bridge_name}, ovs_hybrid_plug={ovs_hybrid_plug}, " \
-              f"datapath_type={datapath_type}")
-    return host, vnic_type, vif_type, mac, int(qinq_id), str(bridge_name), bool(ovs_hybrid_plug), str(datapath_type)
+              f"datapath_type={datapath_type}", device_owner={device_owner})
+    return host, vnic_type, vif_type, mac, int(qinq_id), str(bridge_name), bool(ovs_hybrid_plug), str(datapath_type), device_owner
