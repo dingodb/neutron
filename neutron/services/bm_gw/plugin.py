@@ -103,8 +103,15 @@ class BmgwPlugin(service_base.ServicePluginBase):
         
         # if bm_gw is False, try to reschedule bmgwport
         if str(prev_bm_gw).lower() == 'true' and str(curr_bm_gw).lower() == 'false':
-            LOG.debug(f"[bmgw plugin : _handle_agent_update] Agent {host} bm_gw changed from True to False, try to reschedule bmgwport.")
+            LOG.info(f"[bmgw plugin : _handle_agent_update] Agent {host} bm_gw changed from True to False, try to reschedule bmgwport.")
             self.reschedule_ports_on_agent(plugin, admin_context, host)
+
+        # if bm_gw is True, check bmgwport status, if bmgwport is down, try to update it.
+        # when message queue down, port event will lost to agent and bmgwdriver will NOT create and plug the port to br-int.
+        # so we need to check bmgwport status and update it, when the message queue is up and we receive the agent update event.
+        if str(curr_bm_gw).lower() == 'true':
+            LOG.debug(f"[bmgw plugin : _handle_agent_update] Agent {host} bm_gw is True, check bmgwport status.")
+            self.check_bmgwport_status(plugin, admin_context, host)
 
         # then check down agent
         # Find all ports scheduled to the down agent
@@ -147,9 +154,28 @@ class BmgwPlugin(service_base.ServicePluginBase):
                 LOG.info(f"[bmgw plugin : reschedule_ports_on_agent], Rescheduled bmport {port_id} from {host} to {new_host}")
             except Exception as e:
                 LOG.error(f"[bmgw plugin : reschedule_ports_on_agent], Failed to process port {port_id}: {e}")
+    
+    def check_bmgwport_status(self, plugin, admin_context, host):
+        ports_list = plugin.get_ports_by_vnic_type_and_host(admin_context,
+                                                            vnic_type = portbindings.VNIC_BAREMETAL,
+                                                            host = host)
+        for port in ports_list:
+            port_id = port['id']
+            try:
+                if port['status'] != constants.PORT_STATUS_DOWN:
+                    LOG.debug(f"[bmgw plugin : check_bmgwport_status], bmport {port_id} is not down, skip.")
+                    continue
 
-
-
+                LOG.info(f"[bmgw plugin : check_bmgwport_status], bmport {port_id} is down, triger port update event for agent {host}.")
+                # Update port
+                port_binding = {
+                    'binding:host_id': host
+                }
+                plugin.update_port(admin_context, port_id, {'port': port_binding})
+                LOG.info(f"[bmgw plugin : check_bmgwport_status], updated bmport {port_id} for {host}")
+            except Exception as e:
+                LOG.error(f"[bmgw plugin : check_bmgwport_status], Failed to process port {port_id}: {e}")
+        
     def _handle_port_update(self, resource, event, trigger, payload=None):
         """Handle port update events.
         
